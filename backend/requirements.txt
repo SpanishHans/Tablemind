@@ -1,0 +1,15 @@
+fastapi
+pydantic[email]
+SQLAlchemy
+uvicorn
+requests
+python-jose
+passlib[bcrypt]
+asyncpg
+python-multipart
+celery[redis]
+redis
+aiofiles
+pandas
+openpyxl
+tiktoken

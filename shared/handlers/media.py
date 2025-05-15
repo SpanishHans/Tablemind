@@ -1,0 +1,125 @@
+import uuid
+import os
+from typing import List
+
+from fastapi import UploadFile, HTTPException
+from fastapi.responses import FileResponse
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from shared.auth.auth import CurrentUser
+from shared.utils.text import TextUtils
+from shared.utils.media import MediaUtils
+
+from shared.ops.media import MediaDb, MediaDisk
+from shared.schemas.media import MediaIO
+from shared.schemas.generic import ResponseMessage
+
+class MediaHandler:
+    def __init__(self, db: AsyncSession, upload_dir: str, current_user: CurrentUser):
+        self.db = db
+        self.path = upload_dir
+        self.user = current_user
+
+        self.mediautils = MediaUtils()
+        self.textutils = TextUtils()
+        self.mediaondb = MediaDb(self.db)
+        self.mediaondisk = MediaDisk()
+
+
+
+    async def FileCreate(self, file: UploadFile) -> MediaIO:
+        if not file or not file.filename or not file.content_type:
+                raise HTTPException(status_code=400, detail="Archivo inválido o incompleto.")
+        
+        filename = self.mediautils.sanitize_filename(file.filename)
+        filetype = self.mediautils.check_file_type(file.content_type)
+        filehash, filesize = self.mediautils.generate_file_hash(file)
+        subpath = self.mediautils.determine_subpath(filetype)
+        filepath = os.path.join(self.path, str(self.user.id), subpath)
+
+        existing_file = await self.mediaondb.check_duplicity(self.user.id, filehash)
+        if existing_file:
+            await self.mediaondisk.rename_file(user_id=self.user.id, old_filename=existing_file.filename, new_filename=filename, filepath=existing_file.filepath)
+            await self.mediaondb.update_media_entry(id=existing_file.id, owner=self.user.id, filename=filename)
+            return MediaIO(id=existing_file.id, media_type=existing_file.media_type)
+
+
+        media = await self.mediaondb.create_media_entry(
+                owner=self.user.id,
+                filetype=filetype,
+                filename=filename,
+                filepath=filepath,
+                filehash=filehash
+            )
+        file.file.seek(0)
+        await self.mediaondisk.save_file(self.user.id, file, filename, media.filepath)
+
+        return MediaIO(
+            id=media.id,
+            media_type=media.media_type)
+    
+    
+    
+    async def FileRename(self, id: uuid.UUID, new_filename: str) -> MediaIO:
+        filename = self.mediautils.sanitize_filename(new_filename)
+        media = await self.mediaondb.get_media_entry(id=id, owner=self.user.id)
+        if not media:
+            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+        
+        if media.filename == filename:
+            # No need to rename if the filename is the same
+            return MediaIO(id=media.id, media_type=media.media_type)
+
+        await self.mediaondisk.rename_file(
+            user_id=self.user.id,
+            old_filename=media.filename,
+            new_filename=filename,
+            filepath=media.filepath
+        )
+        updated_media = await self.mediaondb.update_media_entry(
+            id=media.id,
+            owner=self.user.id,
+            filename=filename
+        )
+        
+        
+        return MediaIO(id=updated_media.id, media_type=updated_media.media_type)
+
+
+
+    async def FileRead(self, id: uuid.UUID) -> FileResponse:
+        media = await self.mediaondb.get_media_entry(id=id, owner=self.user.id)
+        if not media:
+            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+        return FileResponse(
+            path=f'{media.filepath}/{media.filename}',
+            media_type=media.media_type,
+            filename=media.filename
+        )
+
+
+
+    async def FileReadAll(self) -> List[MediaIO]:
+
+        mediaqueries = await self.mediaondb.get_all_media_entries(owner=self.user.id)
+        medias = []
+        for i in mediaqueries:
+            medias.append(MediaIO(
+                id=i.id,
+                media_type=i.media_type.value,
+            ))
+        return medias
+
+
+
+    async def FileDelete(self, id: uuid.UUID) -> ResponseMessage:
+        media = await self.mediaondb.get_media_entry(id=id, owner=self.user.id)
+        if not media:
+            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+        filepath = media.filepath
+        filename = media.filename
+
+        await self.mediaondb.delete_media_entry(id=id, owner=self.user.id)
+        await self.mediaondisk.delete_file(self.user.id, filename, filepath)
+        return ResponseMessage(message="Archivo eliminado correctamente")
