@@ -4,6 +4,7 @@ from typing import List, Optional, cast
 
 from fastapi import HTTPException
 
+from pandas.core.internals import api
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.auth.auth import CurrentUser
@@ -55,6 +56,7 @@ class JobHandler:
             media_id: uuid.UUID,
             model_id: uuid.UUID,
             granularity: GranularityLevel,
+            verbosity: float,
             chunk_size: int,
             focus_column: Optional[str]
         ) -> dict:
@@ -81,12 +83,16 @@ class JobHandler:
         # Estimate tokens and cost (replace with actual logic)
         self.input_tokens = self.jobutils.estimate_input_tokens(
             df=df,
-            model_encoder=model.encoder,
-            model_max_input_tokens=model.max_input_tokens,
+            model=model,
+            api_keys='AIzaSyAydgpspYNE_FJjWpK-NJf9udZcMl5pDqU',
             granularity=granularity,
             focus_column=focus_column
         )
-        self.output_tokens = int(self.input_tokens * 0.5)
+        self.output_tokens, self.risk_level = self.jobutils.estimate_output_tokens(
+            self.input_tokens,
+            verbosity=verbosity,
+            model_max_output_tokens=model.max_output_tokens
+        )
         self.cost_usd = (((self.input_tokens / 1_000_000) * model.cost_per_1m_input) + \
                         ((self.output_tokens / 1_000_000) * model.cost_per_1m_output)) + \
                         (price)

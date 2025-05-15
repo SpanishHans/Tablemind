@@ -97,7 +97,7 @@ class SeedDb:
             {
                 "name": "Google Gemini 2 flash",
                 "provider": LLMProviders.GOOGLE,
-                "encoder": "gpt-3.5-turbo",
+                "encoder": "gemini-2.5-flash-preview-04-17",
                 "temperature": 0.1,
                 "top_p": 0.1,
                 'endpoint_url': 'https://generativelanguage.googleapis.com/',

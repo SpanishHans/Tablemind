@@ -4,6 +4,8 @@ import pandas as pd
 import tiktoken
 from enum import Enum
 
+import google.generativeai as genai
+
 from fastapi import HTTPException
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,23 +13,19 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from shared.models.resources import MediaType
 from shared.models.job import GranularityLevel, JobStatus, Chunk_on_db
+from shared.models.resources import Model_on_db
 
 
 
 class OutputVerbosity(Enum):
-    MINIMAL = 0
-    CONCISE = 1
-    BALANCED = 2
-    DESCRIPTIVE = 3
-    VERBOSE = 4
-
-GENERATION_PROFILES = {
-    OutputVerbosity.MINIMAL: {"multiplier": 0.2, "label": "Minimal"},
-    OutputVerbosity.CONCISE: {"multiplier": 0.45, "label": "Concise"},
-    OutputVerbosity.BALANCED: {"multiplier": 0.75, "label": "Balanced"},
-    OutputVerbosity.DESCRIPTIVE: {"multiplier": 1.1, "label": "Descriptive"},
-    OutputVerbosity.VERBOSE: {"multiplier": 1.5, "label": "Verbose"},
-}
+    MINIMAL = 0.2
+    CONCISE = 0.45
+    BALANCED = 0.75
+    DESCRIPTIVE = 1.1
+    VERBOSE = 1.5
+    
+    def __str__(self):
+            return self.name  # Now FastAPI uses the key for parsing
 
 
 
@@ -51,45 +49,88 @@ class JobUtils:
 
         except (ValueError, FileNotFoundError, pd.errors.ParserError, SQLAlchemyError) as e:
             raise HTTPException(status_code=500, detail=f"Error loading file: {str(e)}")
+    
+    
+
+    def estimate_google(
+        self,
+        data: str,
+        api_key: str,
+        model_encoder: str,
+    ):
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_encoder)
+
+            contents_to_send = [
+                {
+                    "role": "user",
+                    "parts": [{"text": data}]
+                }
+            ]
+
+            token_response = model.count_tokens(contents=contents_to_send)
+            return token_response.total_tokens
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens: {str(e)}")
+
+
+    
+    def provider_picker(self, model: Model_on_db, content: str, api_keys:str) -> int:
+        total_tokens = 0
+        if model.provider == "Google":
+            try:
+                total_tokens += self.estimate_google(data=content, api_key=api_keys , model_encoder=model.encoder)
+                return total_tokens
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens con Google: {str(e)}")
+        elif model.provider == "OpenAI":
+            try:
+                total_tokens += self.estimate_google(data=content, api_key=api_keys , model_encoder=model.encoder)
+                return total_tokens
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens con Anthropic: {str(e)}")
+        else:
+            return 0
+        
 
 
 
     def estimate_input_tokens(
-        self,
-        df: pd.DataFrame,
-        model_encoder: str,
-        model_max_input_tokens: int,
-        granularity: GranularityLevel = GranularityLevel.PER_ROW,
-        focus_column: Optional[str] = None
-    ) -> int:
-        enc = tiktoken.encoding_for_model(model_encoder)
+            self,
+            df: pd.DataFrame,
+            model: Model_on_db,
+            api_keys,
+            granularity: GranularityLevel = GranularityLevel.PER_ROW,
+            focus_column: Optional[str] = None
+        ) -> int:
+        # enc = tiktoken.encoding_for_model(model_encoder)
         total_tokens = 0
 
         if granularity == GranularityLevel.PER_ROW:
             for _, row in df.iterrows():
                 content = str(row.to_dict())
-                total_tokens += len(enc.encode(content))
-
+                total_tokens = self.provider_picker(model, content, api_keys)
         elif granularity == GranularityLevel.PER_CELL:
             if focus_column is None or focus_column not in df.columns:
                 raise ValueError("focus_column must be provided and valid for PER_CELL granularity")
 
             for _, row in df.iterrows():
-                content = str(row[focus_column])
-                total_tokens += len(enc.encode(content))
+                content = str(row.to_dict())
+                total_tokens = self.provider_picker(model, content, api_keys)
 
         return total_tokens
 
 
 
     def estimate_output_tokens(
-        self,
-        input_tokens: int,
-        verbosity: OutputVerbosity,
-        model_max_output_tokens: int
-    ) -> Tuple[int, str]:
-        profile = GENERATION_PROFILES[verbosity]
-        total_tokens = int(input_tokens * profile["multiplier"])
+            self,
+            input_tokens: int,
+            verbosity: float,
+            model_max_output_tokens: int
+        ) -> Tuple[int, str]:
+        total_tokens = int(input_tokens * round(verbosity,2))
 
         risk_level = "low"
 
@@ -101,7 +142,6 @@ class JobUtils:
             risk_level = "medium"
 
         return total_tokens, risk_level
-
 
 
 

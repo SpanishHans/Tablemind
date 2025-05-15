@@ -37,6 +37,7 @@ async def create_job(
     model_id: uuid.UUID = Form(..., description='UUID del modelo'),
     focus_column: Optional[str] = Form(None, description='Columna para modo celda.'),
     granularity: str = Query(..., description='Tipo de contexto: fila completa o columna específica'),
+    verbosity: float = Query(..., min=0.2, max=2, description='Verbosidad de output: Conciso o Detallado'),
     chunk_size: int = Query(..., description='Cantidad de filas en trabajo'),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
@@ -46,6 +47,7 @@ async def create_job(
         media_id=media_id, 
         model_id=model_id,
         granularity=GranularityLevel[granularity],
+        verbosity=verbosity,
         chunk_size=chunk_size,
         focus_column=focus_column
     )
