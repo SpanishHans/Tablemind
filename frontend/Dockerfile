@@ -10,6 +10,9 @@ RUN npm install -g pnpm
 COPY ./tablemind/pnpm-lock.yaml ./tablemind/package.json ./
 RUN pnpm install --frozen-lockfile --prod
 
+RUN pnpm install --frozen-lockfile --prod
+RUN pnpm add tailwindcss postcss autoprefixer @tailwindcss/postcss
+
 # Copy the rest of the app and build
 COPY ./tablemind .
 RUN pnpm build
