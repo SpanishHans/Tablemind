@@ -35,22 +35,22 @@ export default function Register() {
           >
             <div className="flex flex-col md:flex-row">
               {/* Left Side - Information */}
-              <div className="w-full md:w-5/12 bg-blue-600 p-8 flex flex-col justify-center items-center">
+              <div className="w-full md:w-5/12 bg-gradient-to-br from-blue-500 to-purple-500 p-8 flex flex-col justify-center items-center">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.6, delay: 0.2 }}
                   className="text-center"
                 >
-                  <div className="mb-4 flex justify-center">
-                    {/* Placeholder for actual logo - replace with your logo */}
-                    <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center">
-                      <span className="text-blue-600 text-3xl font-bold">TM</span>
+                  <div className="mb-6 flex justify-center">
+                    {/* Logo de TableMind */}
+                    <div className="w-32 h-32 flex items-center justify-center">
+                      <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
                     </div>
                   </div>
                   <h2 className="text-3xl font-bold mb-3">TableMind</h2>
                   <p className="text-blue-100 mb-6">
-                    Join thousands of data professionals who use TableMind to analyze Excel data with AI
+                    Únete a miles de profesionales que usan TableMind para analizar datos de Excel con IA
                   </p>
                   
                   <div className="space-y-4 text-left">
@@ -60,7 +60,7 @@ export default function Register() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <p className="text-sm text-blue-100">Upload Excel files for instant AI analysis</p>
+                      <p className="text-sm text-blue-100">Sube archivos Excel para un análisis instantáneo con IA</p>
                     </div>
                     <div className="flex items-start">
                       <div className="bg-white/20 rounded-full p-2 mr-3 mt-1">
@@ -68,7 +68,7 @@ export default function Register() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <p className="text-sm text-blue-100">Get actionable insights from your data</p>
+                      <p className="text-sm text-blue-100">Obtén información accionable de tus datos</p>
                     </div>
                     <div className="flex items-start">
                       <div className="bg-white/20 rounded-full p-2 mr-3 mt-1">
@@ -76,7 +76,7 @@ export default function Register() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <p className="text-sm text-blue-100">Free plan available to get started</p>
+                      <p className="text-sm text-blue-100">Plan gratuito disponible para comenzar</p>
                     </div>
                   </div>
                 </motion.div>
@@ -90,14 +90,14 @@ export default function Register() {
                   transition={{ duration: 0.6, delay: 0.3 }}
                 >
                   <div className="mb-6">
-                    <h2 className="text-2xl font-bold mb-1">Create an Account</h2>
-                    <p className="text-gray-400">Fill in the form below to get started</p>
+                    <h2 className="text-2xl font-bold mb-1">Crear una cuenta</h2>
+                    <p className="text-gray-400">Completa el formulario para comenzar</p>
                   </div>
 
                   <form onSubmit={handleSubmit}>
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="name">
-                        Full Name
+                        Nombre completo
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -106,8 +106,8 @@ export default function Register() {
                         <input
                           id="name"
                           type="text"
-                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter your full name"
+                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="Ingresa tu nombre completo"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           required
@@ -117,7 +117,7 @@ export default function Register() {
 
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="email">
-                        Email Address
+                        Correo electrónico
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -126,8 +126,8 @@ export default function Register() {
                         <input
                           id="email"
                           type="email"
-                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter your email address"
+                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="Ingresa tu correo electrónico"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
@@ -137,7 +137,7 @@ export default function Register() {
 
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="password">
-                        Password
+                        Contraseña
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -146,8 +146,8 @@ export default function Register() {
                         <input
                           id="password"
                           type="password"
-                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Create a password"
+                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="Crea una contraseña"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
@@ -157,7 +157,7 @@ export default function Register() {
 
                     <div className="mb-6">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="confirm-password">
-                        Confirm Password
+                        Confirmar contraseña
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -166,8 +166,8 @@ export default function Register() {
                         <input
                           id="confirm-password"
                           type="password"
-                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Confirm your password"
+                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="Confirma tu contraseña"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           required
@@ -179,21 +179,21 @@ export default function Register() {
                       <input
                         id="accept-terms"
                         type="checkbox"
-                        className="h-4 w-4 text-blue-600 rounded"
+                        className="h-4 w-4 text-purple-600 rounded"
                         checked={acceptTerms}
                         onChange={(e) => setAcceptTerms(e.target.checked)}
                         required
                       />
                       <label htmlFor="accept-terms" className="ml-2 block text-sm text-gray-400">
-                        I agree to the <Link href="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</Link> and <Link href="/privacy" className="text-blue-400 hover:text-blue-300">Privacy Policy</Link>
+                        Acepto los <Link href="/terms" className="text-purple-400 hover:text-purple-300">Términos de Servicio</Link> y <Link href="/privacy" className="text-purple-400 hover:text-purple-300">Política de Privacidad</Link>
                       </label>
                     </div>
 
                     <Button 
                       type="submit" 
-                      className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 py-3 rounded-lg font-semibold"
                     >
-                      Create Account
+                      Crear Cuenta
                     </Button>
                   </form>
 
@@ -203,7 +203,7 @@ export default function Register() {
                         <div className="w-full border-t border-gray-600"></div>
                       </div>
                       <div className="relative flex justify-center text-sm">
-                        <span className="px-2 bg-gray-800 text-gray-400">Or sign up with</span>
+                        <span className="px-2 bg-gray-800 text-gray-400">O regístrate con</span>
                       </div>
                     </div>
 
@@ -221,9 +221,9 @@ export default function Register() {
 
                   <div className="mt-6 text-center">
                     <p className="text-gray-400">
-                      Already have an account?{" "}
-                      <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">
-                        Sign in
+                      ¿Ya tienes una cuenta?{" "}
+                      <Link href="/login" className="text-purple-400 hover:text-purple-300 font-medium">
+                        Inicia sesión
                       </Link>
                     </p>
                   </div>

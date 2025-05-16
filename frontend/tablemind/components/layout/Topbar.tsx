@@ -14,43 +14,44 @@ export default function Topbar() {
     >
       <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
         {/* Logo */}
-        <Link href="/" className="text-2xl font-bold">
-          Logo
+        <Link href="/" className="flex items-center">
+          <div className="w-9 h-9 mr-2">
+            <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
+          </div>
+          <span className="text-2xl font-bold">TableMind</span>
         </Link>
         
         <nav className="hidden md:flex space-x-6 items-center ">
           <Link href="/features" className="hover:text-gray-300 transition">
-            Features
+            Características
           </Link>
           <Link href="/pricing" className="hover:text-gray-300 transition">
-            Pricing
+            Precios
           </Link>
           <Link href="/faq" className="hover:text-gray-300 transition">
             FAQ
           </Link>
           <Link href="/contact" className="hover:text-gray-300 transition">
-            Contact
+            Contacto
           </Link>
 
           <Link href="/login">
             <Button
               variant="secondary"
-              className="cursor-pointer"
+              className="cursor-pointer bg-gray-800 hover:bg-gray-700 text-white"
             >
-              Log In
+              Iniciar Sesión
             </Button>
           </Link>
           
           <Link href="/register">
             <Button
               variant="default"
-              className="bg-blue-600 border-blue-600 text-white hover:text-white hover:border-blue-500 hover:bg-blue-500 font-semibold cursor-pointer"
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-none text-white hover:text-white font-semibold cursor-pointer"
             >
-              Get Started
+              Comenzar
             </Button>
           </Link>
-
-
         </nav>
 
         {/* Mobile Menu Button */}
@@ -75,7 +76,7 @@ export default function Topbar() {
             className="hover:text-gray-300 transition"
             onClick={() => setMenuOpen(false)}
           >
-            Features
+            Características
           </Link>
           
           <Link
@@ -83,7 +84,7 @@ export default function Topbar() {
             className="hover:text-gray-300 transition"
             onClick={() => setMenuOpen(false)}
           >
-            Pricing
+            Precios
           </Link>
           
           <Link
@@ -99,24 +100,24 @@ export default function Topbar() {
             className="hover:text-gray-300 transition"
             onClick={() => setMenuOpen(false)}
           >
-            Contact
+            Contacto
           </Link>
           
           <Link href="/login">
             <Button
               variant="outline"
-              className="w-full text-gray-900 cursor-pointer"
+              className="w-full text-white bg-gray-700 hover:bg-gray-600 cursor-pointer"
             >
-              Log In
+              Iniciar Sesión
             </Button>
           </Link>
           
           <Link href="/register">
             <Button
               variant="outline"
-              className="w-full bg-blue-600 border-blue-600 text-white hover:text-white hover:border-blue-500 hover:bg-blue-500 font-semibold cursor-pointer"
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-none text-white hover:text-white font-semibold cursor-pointer"
             >
-              Get Started
+              Comenzar
             </Button>
           </Link>
         </motion.div>

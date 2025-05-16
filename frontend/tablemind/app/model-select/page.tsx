@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { FaArrowRight, FaCog } from "react-icons/fa";
+import Link from "next/link";
 
 import Topbar from "@/components/layout/Topbar";
 import Footer from "@/components/layout/Footer";
@@ -21,32 +22,29 @@ export default function ModelSelectPage() {
     { id: "grok", name: "Grok", color: "bg-blue-600" },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Analysis parameters:", { selectedModel, detailLevel, operationMode });
-    
-    // Redirigir a la página de análisis
-    window.location.href = "/analysis";
-  };
-
   return (
     <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col">
       <Topbar />
       
       <main className="flex-grow pt-20 px-6 md:px-10 lg:px-16">
         <div className="max-w-4xl mx-auto py-8">
-          {/* Header */}
+          {/* Header with Logo */}
           <motion.div 
             className="mb-10 text-center"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20">
+                <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
+              </div>
+            </div>
             <h1 className="text-3xl font-bold">Selecciona un modelo</h1>
             <p className="text-gray-400 mt-2">Elige el modelo de IA y configura los parámetros para tu análisis</p>
           </motion.div>
 
-          <form onSubmit={handleSubmit}>
+          <div>
             {/* AI Model Selection */}
             <motion.div
               className="mb-8"
@@ -61,7 +59,7 @@ export default function ModelSelectPage() {
                     key={model.id}
                     className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                       selectedModel === model.id
-                        ? "border-blue-500 bg-gray-800"
+                        ? "border-purple-500 bg-gray-800"
                         : "border-gray-700 bg-gray-800/50 hover:border-gray-500"
                     }`}
                     onClick={() => setSelectedModel(model.id)}
@@ -89,7 +87,7 @@ export default function ModelSelectPage() {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <div className="flex items-center mb-4">
-                <FaCog className="text-blue-400 mr-2" />
+                <FaCog className="text-purple-400 mr-2" />
                 <h2 className="text-xl font-semibold">Configuración del análisis</h2>
               </div>
 
@@ -120,7 +118,7 @@ export default function ModelSelectPage() {
                 <select
                   value={operationMode}
                   onChange={(e) => setOperationMode(e.target.value)}
-                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="fila">Fila</option>
                   <option value="columna">Columna</option>
@@ -152,14 +150,14 @@ export default function ModelSelectPage() {
                     <label className="block text-gray-300 mb-2">Máximo de filas a procesar</label>
                     <input
                       type="number"
-                      className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="100"
                     />
                   </div>
                   <div>
                     <label className="block text-gray-300 mb-2">Formato de salida</label>
                     <select
-                      className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                       defaultValue="auto"
                     >
                       <option value="auto">Auto</option>
@@ -179,16 +177,26 @@ export default function ModelSelectPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <Button 
-                type="submit" 
-                disabled={!selectedModel}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Siguiente</span>
-                <FaArrowRight />
-              </Button>
+              <Link href="/processing">
+                <Button 
+                  type="button" 
+                  disabled={!selectedModel}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={(e) => {
+                    if (!selectedModel) {
+                      e.preventDefault();
+                    } else {
+                      // Aquí podrías guardar los parámetros seleccionados si es necesario
+                      console.log("Analysis parameters:", { selectedModel, detailLevel, operationMode });
+                    }
+                  }}
+                >
+                  <span>Siguiente</span>
+                  <FaArrowRight />
+                </Button>
+              </Link>
             </motion.div>
-          </form>
+          </div>
         </div>
       </main>
 

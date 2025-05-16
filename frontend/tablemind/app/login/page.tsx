@@ -36,26 +36,26 @@ export default function Login() {
           >
             <div className="flex flex-col md:flex-row">
               {/* Logo Section - Left Side */}
-              <div className="w-full md:w-5/12 bg-blue-600 p-8 flex flex-col justify-center items-center">
+              <div className="w-full md:w-5/12 bg-gradient-to-br from-blue-500 to-purple-500 p-8 flex flex-col justify-center items-center">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.6, delay: 0.2 }}
                   className="text-center"
                 >
-                  <div className="mb-4 flex justify-center">
-                    {/* Placeholder for actual logo - replace with your logo */}
-                    <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center">
-                      <span className="text-blue-600 text-3xl font-bold">TM</span>
+                  <div className="mb-6 flex justify-center">
+                    {/* Logo de TableMind */}
+                    <div className="w-32 h-32 flex items-center justify-center">
+                      <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
                     </div>
                   </div>
                   <h2 className="text-3xl font-bold mb-3">TableMind</h2>
                   <p className="text-blue-100">
-                    Analyze your Excel data with the power of AI
+                    Analiza tus datos de Excel con el poder de la IA
                   </p>
                   
                   <div className="mt-8">
-                    <p className="text-sm text-blue-200 mb-4">Trusted by data professionals worldwide</p>
+                    <p className="text-sm text-blue-200 mb-4">De confianza para profesionales de datos en todo el mundo</p>
                     <div className="flex justify-center space-x-4">
                       {/* Here you could add partner logos */}
                       <div className="w-8 h-8 bg-white/20 rounded-full"></div>
@@ -74,14 +74,14 @@ export default function Login() {
                   transition={{ duration: 0.6, delay: 0.3 }}
                 >
                   <div className="mb-6">
-                    <h2 className="text-2xl font-bold mb-1">Welcome Back!</h2>
-                    <p className="text-gray-400">Please sign in to your account</p>
+                    <h2 className="text-2xl font-bold mb-1">¡Bienvenido de nuevo!</h2>
+                    <p className="text-gray-400">Por favor inicia sesión en tu cuenta</p>
                   </div>
 
                   <form onSubmit={handleSubmit}>
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="email">
-                        Email or Username
+                        Correo o nombre de usuario
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -90,8 +90,8 @@ export default function Login() {
                         <input
                           id="email"
                           type="text"
-                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter your email or username"
+                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="Ingresa tu correo o usuario"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
@@ -102,10 +102,10 @@ export default function Login() {
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-gray-400 text-sm" htmlFor="password">
-                          Password
+                          Contraseña
                         </label>
-                        <Link href="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300">
-                          Forgot Password?
+                        <Link href="/forgot-password" className="text-sm text-purple-400 hover:text-purple-300">
+                          ¿Olvidaste tu contraseña?
                         </Link>
                       </div>
                       <div className="relative">
@@ -115,8 +115,8 @@ export default function Login() {
                         <input
                           id="password"
                           type="password"
-                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter your password"
+                          className="bg-gray-700 text-white rounded-lg block w-full pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="Ingresa tu contraseña"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
@@ -128,20 +128,20 @@ export default function Login() {
                       <input
                         id="remember-me"
                         type="checkbox"
-                        className="h-4 w-4 text-blue-600 rounded"
+                        className="h-4 w-4 text-purple-600 rounded"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
                       />
                       <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-400">
-                        Remember me
+                        Recordarme
                       </label>
                     </div>
 
                     <Button 
                       type="submit" 
-                      className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 py-3 rounded-lg font-semibold"
                     >
-                      Sign In
+                      Iniciar Sesión
                     </Button>
                   </form>
 
@@ -151,7 +151,7 @@ export default function Login() {
                         <div className="w-full border-t border-gray-600"></div>
                       </div>
                       <div className="relative flex justify-center text-sm">
-                        <span className="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+                        <span className="px-2 bg-gray-800 text-gray-400">O continuar con</span>
                       </div>
                     </div>
 
@@ -169,9 +169,9 @@ export default function Login() {
 
                   <div className="mt-6 text-center">
                     <p className="text-gray-400">
-                      Don&apos;t have an account?{" "}
-                      <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium">
-                        Sign up
+                      ¿No tienes una cuenta?{" "}
+                      <Link href="/register" className="text-purple-400 hover:text-purple-300 font-medium">
+                        Regístrate
                       </Link>
                     </p>
                   </div>
