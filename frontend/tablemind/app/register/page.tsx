@@ -38,8 +38,10 @@ export default function Register() {
       formData.append("username", name);
       formData.append("email", email);
       formData.append("password", password);
+      
+      const apiUrl = "/api/auth/registro";
 
-      const res = await fetch("http://localhost:8000/auth/registro", {
+      const res = await fetch(apiUrl, {
         method: "POST",
         body: formData,
       });
@@ -48,12 +50,16 @@ export default function Register() {
         const data = await res.json();
         setErrorMsg(data.detail || "Error al registrarse");
       } else {
-        setSuccessMsg("Registro exitoso. Ahora puedes iniciar sesión.");
+        setSuccessMsg("Registro exitoso. Redireccionando...");
         setName("");
         setEmail("");
         setPassword("");
         setConfirmPassword("");
         setAcceptTerms(false);
+        // Redirect to prompt page after a short delay to show success message
+        setTimeout(() => {
+          window.location.href = "/prompt";
+        }, 1500);
       }
     } catch {
       setErrorMsg("Error de conexión con el servidor.");

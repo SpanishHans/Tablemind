@@ -1,16 +1,44 @@
 
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaArrowRight, FaLightbulb } from "react-icons/fa";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import Topbar from "@/components/layout/Topbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 
 export default function PromptPage() {
+  const router = useRouter();
   const [promptText, setPromptText] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        // Redirect to login if no token is found
+        router.push("/login");
+      } else {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
+
+  // If still checking authentication, show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <p className="mt-4 text-gray-400">Verificando credenciales...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col">

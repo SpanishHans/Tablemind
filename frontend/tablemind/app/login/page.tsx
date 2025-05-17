@@ -35,7 +35,7 @@ export default function Login() {
         setErrorMsg(data.detail || "Error al iniciar sesión");
       } else {
         localStorage.setItem("access_token", data.access_token);
-        window.location.href = "/";
+        window.location.href = "/prompt";
       }
     } catch (error) {
       console.error("Login error:", error);

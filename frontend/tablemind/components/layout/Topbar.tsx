@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { FaBars, FaTimes } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,8 @@ export default function Topbar() {
       <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
         {/* Logo */}
         <Link href="/" className="flex items-center">
-          <div className="w-9 h-9 mr-2">
-            <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
+          <div className="w-9 h-9 mr-2 relative">
+            <Image src="/images/logo.jpeg" alt="TableMind Logo" fill sizes="36px" className="object-contain" />
           </div>
           <span className="text-2xl font-bold">TableMind</span>
         </Link>
