@@ -20,7 +20,7 @@ export default function Login() {
       formData.append("username", username);
       formData.append("password", password);
 
-      const res = await fetch("http://localhost:8000/auth/login", {
+      const res = await fetch("http://backend:10352/auth/login", {
         method: "POST",
         body: formData,
         credentials: "include"
