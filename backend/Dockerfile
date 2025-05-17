@@ -10,7 +10,8 @@ RUN pip install -e /app/shared
 
 COPY ./backend/app .
 
-RUN chmod -R 777 /app/uploads
+# Create directories for uploads and exports
+RUN mkdir -p /app/uploads/exports && chmod -R 777 /app/uploads
 
 EXPOSE 8000
 
