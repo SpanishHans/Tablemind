@@ -1,5 +1,6 @@
 import os
 import uuid
+import random
 from typing import List, Optional, cast
 
 from fastapi import HTTPException
@@ -11,6 +12,7 @@ from shared.auth.auth import CurrentUser
 from shared.utils.text import TextUtils
 from shared.utils.media import MediaUtils
 from shared.utils.job import JobUtils, ChunkUtils
+from shared.utils.crypt import CryptoUtils
 
 from shared.models.job import GranularityLevel, JobStatus
 
@@ -23,7 +25,7 @@ from shared.ops.user import UsersDb
 from shared.schemas.generic import ResponseMessage
 from shared.schemas.job import ResponseJob
 
-APIKEYGEMINI = os.getenv("APIKEYGEMINI", "")
+KEY_FERNET_ENCRYPTION = os.getenv("KEY_FERNET_ENCRYPTION", "A very safe key").encode()
 
 class JobHandler:
     def __init__(
@@ -76,11 +78,13 @@ class JobHandler:
 
         if focus_column and focus_column not in df.columns:
             raise HTTPException(status_code=400, detail=f"No se encontró '{focus_column}' en df.")
+            
+        random_api_key_obj = random.choice(model.api_keys)
 
         self.input_tokens = self.jobutils.estimate_input_tokens(
             df=df,
             model=model,
-            api_keys=APIKEYGEMINI,
+            api_keys=CryptoUtils(key=KEY_FERNET_ENCRYPTION).decrypt(random_api_key_obj.api_key),
             granularity=granularity,
             focus_column=focus_column
         )

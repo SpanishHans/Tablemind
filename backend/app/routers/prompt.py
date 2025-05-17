@@ -15,10 +15,6 @@ from shared.schemas.generic import ResponseMessage
 
 router = APIRouter(tags=["Prompts"], prefix = '/prompt')
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
-
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
 @router.post("/new", response_model=ResponsePrompt)
 async def upload_media(
     prompt: RequestPrompt = Depends(validate_prompt),

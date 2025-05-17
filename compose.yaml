@@ -24,7 +24,7 @@ services:
     ports:
       - "${PORT_BACK}:8000"
     volumes:
-      - uploads:${UPLOAD_DIR}
+      - uploads:${BASE_UPLOAD_DIR}
     environment:
       - REDIS_HOST=redis
     depends_on:
@@ -62,13 +62,13 @@ services:
     networks:
       - app_net
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${USER_DB}
+      POSTGRES_PASSWORD: ${PASS_DB}
+      POSTGRES_DB: ${NAME_DB}
     volumes:
       - postgresql:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB} -d ${NAME_DB}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -82,8 +82,8 @@ services:
     ports:
       - "${PORT_PGAD}:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${DB_MAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${DB_PASS}
+      PGADMIN_DEFAULT_EMAIL: ${MAIL_DB}
+      PGADMIN_DEFAULT_PASSWORD: ${PASS_DB}
     volumes:
       - pgadmin:/var/lib/pgadmin
 

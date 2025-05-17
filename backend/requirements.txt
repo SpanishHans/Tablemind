@@ -5,6 +5,7 @@ uvicorn
 requests
 python-jose
 passlib[bcrypt]
+cryptography
 asyncpg
 python-multipart
 celery[redis]

@@ -120,7 +120,7 @@ class APIKey_on_db(Base):
         default=uuid.uuid4
     )
     model_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("models.id"))
-    api_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    api_key: Mapped[str] = mapped_column(String(256), nullable=False, unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=False)
     usage_count: Mapped[int] = mapped_column(nullable=False, default=0)
 

@@ -9,11 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.utils.auth import PasswordService
 from shared.utils.text import TextUtils
+from shared.utils.crypt import CryptoUtils
 
 from shared.models.user import User_on_db, UserTier_on_db
 from shared.models.resources import Model_on_db, APIKey_on_db
 
-ROOTPASSWD = os.getenv("ROOTPASSWD", "A very safe root password")
+PASS_ROOT_USER = os.getenv("PASS_ROOT_USER", "A very safe root password")
+KEY_FERNET_ENCRYPTION = os.getenv("KEY_FERNET_ENCRYPTION", "A very safe key").encode()
+KEY_API_GEMINI = os.getenv("KEY_API_GEMINI", "")
 
 class LLMProviders(str, Enum):
     OPENAI = "OpenAI"
@@ -68,7 +71,7 @@ class SeedDb:
                 "usertier": admin_tier.id,
                 "username": "root",
                 "email": "root@TableMind.com",
-                "password_hash": PasswordService(TextUtils().sanitize_text(ROOTPASSWD)).hash_password(),
+                "password_hash": PasswordService(TextUtils().sanitize_text(PASS_ROOT_USER)).hash_password(),
                 "profile_picture": "",
                 "biography":"",
                 "media_usage": 0
@@ -266,7 +269,7 @@ class SeedDb:
         default_keys = [
             {
                 "model_id": model.id,
-                "api_key": TextUtils().generate_text_hash(APIKEYGEMINI),
+                "api_key": CryptoUtils(key=KEY_FERNET_ENCRYPTION).encrypt(KEY_API_GEMINI),
             },
         ]
         try:

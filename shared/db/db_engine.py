@@ -4,12 +4,12 @@ import os
 
 from shared.models.base import Base
 
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASS", "averysecurepassword")
-DB_NAME = os.getenv("DB_NAME", "Tablemind")
-HOST_DBPT = os.getenv("HOST_DBPT", "db")
+USER_DB = os.getenv("USER_DB", "postgres")
+PASS_DB = os.getenv("PASS_DB", "averysecurepassword")
+NAME_DB = os.getenv("NAME_DB", "Tablemind")
+HOST_DB = os.getenv("HOST_DB", "db")
 
-DATABASE = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{HOST_DBPT}:5432/{DB_NAME}"
+DATABASE = f"postgresql+asyncpg://{USER_DB}:{PASS_DB}@{HOST_DB}:5432/{NAME_DB}"
 
 
 

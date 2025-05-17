@@ -9,12 +9,12 @@ class CurrentUser(BaseModel):
     id: uuid.UUID = Field(..., examples=[uuid.uuid4()])
     username: str
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")  # Same as in auth container
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
+KEY_TOKEN_HASHER = os.getenv("KEY_TOKEN_HASHER", "supersecret")  # Same as in auth container
+HASHER_ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 def decode_and_validate_token(token: str, expected_type: str = "access"):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, KEY_TOKEN_HASHER, algorithms=[HASHER_ALGORITHM])
         token_type = payload.get("token_type")
         if token_type != expected_type:
             raise HTTPException(

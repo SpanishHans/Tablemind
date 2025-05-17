@@ -18,9 +18,9 @@ from shared.schemas.generic import ResponseMessage
 
 router = APIRouter(tags=["Archivos"], prefix = '/media')
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
+BASE_UPLOAD_DIR = os.getenv("BASE_UPLOAD_DIR", "/app/uploads")
 
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(BASE_UPLOAD_DIR, exist_ok=True)
 
 
 
@@ -30,7 +30,7 @@ async def get_media(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileRead(media_id)
+    return await MediaHandler(db=db, upload_dir=BASE_UPLOAD_DIR, current_user=current_user).FileRead(media_id)
 
 
 
@@ -39,7 +39,7 @@ async def get_all_media(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileReadAll()
+    return await MediaHandler(db=db, upload_dir=BASE_UPLOAD_DIR, current_user=current_user).FileReadAll()
 
 
 
@@ -54,7 +54,7 @@ async def upload_tabular(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileCreate(file)
+    return await MediaHandler(db=db, upload_dir=BASE_UPLOAD_DIR, current_user=current_user).FileCreate(file)
 
 
 
@@ -68,7 +68,7 @@ async def upload_media(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileCreate(file)
+    return await MediaHandler(db=db, upload_dir=BASE_UPLOAD_DIR, current_user=current_user).FileCreate(file)
 
 
 
@@ -79,7 +79,7 @@ async def edit_media(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileRename(id=media_id,new_filename=filename)
+    return await MediaHandler(db=db, upload_dir=BASE_UPLOAD_DIR, current_user=current_user).FileRename(id=media_id,new_filename=filename)
 
 
 
@@ -89,4 +89,4 @@ async def delete_media(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileDelete(media_id)
+    return await MediaHandler(db=db, upload_dir=BASE_UPLOAD_DIR, current_user=current_user).FileDelete(media_id)
