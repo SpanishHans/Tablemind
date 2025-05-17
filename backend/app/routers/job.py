@@ -4,7 +4,7 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Query
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,7 +102,7 @@ async def start_job(
 
 @router.get("/status", response_model=ResponseJobStatus)
 async def check_job_status(
-    job_id: uuid.UUID = Form(...),
+    job_id: uuid.UUID = Query(..., description="Job ID"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -143,7 +143,7 @@ async def check_job_status(
 
 @router.get("/results", response_model=Dict[str, Any])
 async def get_job_results(
-    job_id: uuid.UUID = Form(...),
+    job_id: uuid.UUID = Form(..., description="Job ID"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
