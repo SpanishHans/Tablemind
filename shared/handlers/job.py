@@ -22,7 +22,6 @@ from shared.utils.crypt import CryptoUtils
 from shared.utils.job import ChunkUtils, JobUtils
 from shared.utils.media import MediaUtils
 from shared.utils.text import TextUtils
-from shared.utils.export import ExportUtils
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +46,6 @@ class JobHandler:
         self.mediaondb = MediaDb(self.db)
         self.modelondb = ModelDb(self.db)
         self.userondb = UsersDb(self.db)
-        
-        # Initialize export utils with upload directory
-        BASE_UPLOAD_DIR = os.getenv("BASE_UPLOAD_DIR", "/app/uploads")
-        self.exportutils = ExportUtils(BASE_UPLOAD_DIR)
 
 
 
@@ -505,119 +500,3 @@ class JobHandler:
                 detail=f"Error getting job chunks: {str(e)}"
             )
                 
-    async def DownloadJobResults(self, job_id: uuid.UUID, file_format: str = "csv", include_input: bool = True) -> Tuple[FileResponse, ResponseJobDownload]:
-        """
-        Generate a downloadable file from job results
-        
-        Parameters:
-        -----------
-        job_id : uuid.UUID
-            The UUID of the job to download
-        file_format : str
-            The format of the file to download (csv, xlsx, json)
-        include_input : bool
-            Whether to include input data in the output
-            
-        Returns:
-        --------
-        Tuple[FileResponse, ResponseJobDownload]
-            FileResponse to download the file and metadata about the download
-        """
-        try:
-            # Get the job and check status
-            job = await self.JobRead(job_id)
-            
-            if not hasattr(job, 'job_status') or job.job_status != JobStatus.FINISHED:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Job is not in FINISHED state"
-                )
-                
-            # Get the job chunks
-            chunks = await self.GetJobChunks(job_id)
-            
-            # Convert database objects to dictionaries for processing
-            chunk_dicts = []
-            for chunk in chunks:
-                # Skip chunks without output data
-                if not hasattr(chunk, "output_data") or not chunk.output_data:
-                    logger.warning(f"Skipping chunk {chunk.chunk_index} - no output data")
-                    continue
-                    
-                chunk_dict = {
-                    "chunk_index": chunk.chunk_index,
-                    "row_range": chunk.row_range,
-                    "status": chunk.status,
-                    "input_data": chunk.source_data,
-                    "output_data": chunk.output_data
-                }
-                chunk_dicts.append(chunk_dict)
-            
-            # Make sure we have chunks with data to export
-            if not chunk_dicts:
-                raise HTTPException(
-                    status_code=404,
-                    detail="No processed data found in chunks. Job may still be processing or no output was generated."
-                )
-                
-            # Export the file based on format
-            if file_format.lower() == "csv":
-                export_path = self.exportutils.export_to_csv(job_id, chunk_dicts, include_input)
-            elif file_format.lower() in ["excel", "xlsx"]:
-                export_path = self.exportutils.export_to_excel(job_id, chunk_dicts, include_input)
-            elif file_format.lower() == "json":
-                export_path = self.exportutils.export_to_json(job_id, chunk_dicts, include_input)
-            else:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Unsupported file format: {file_format}"
-                )
-                
-            # Create file response
-            file_response = self.exportutils.get_export_response(export_path)
-            
-            # Count processed rows
-            rows_processed = 0
-            output_columns = set()
-            
-            for chunk in chunk_dicts:
-                if chunk.get("output_data"):
-                    rows_processed += len(chunk["output_data"])
-                    
-                    # Extract column names from first row of output
-                    if chunk["output_data"] and len(chunk["output_data"]) > 0:
-                        first_row = chunk["output_data"][0]
-                        
-                        # Check for different possible data structures
-                        if "output" in first_row:
-                            if isinstance(first_row["output"], dict):
-                                output_columns.update(first_row["output"].keys())
-                            else:
-                                output_columns.add("output")
-                        else:
-                            # If there's no 'output' field, look for other fields
-                            for key in first_row:
-                                if key not in ["row", "input"]:
-                                    output_columns.add(key)
-            
-            # Create download metadata
-            download_info = ResponseJobDownload(
-                job_id=str(job_id),
-                filename=os.path.basename(export_path),
-                status="ready",
-                download_url=f"/job/download-file/{job_id}?format={file_format}",
-                created_at=datetime.now(),
-                file_format=file_format,
-                rows_processed=rows_processed,
-                output_columns=list(output_columns)
-            )
-            
-            return file_response, download_info
-            
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error downloading job results: {str(e)}"
-            )

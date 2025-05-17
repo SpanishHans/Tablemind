@@ -6,20 +6,6 @@ import unicodedata
 
 class TextUtils:
     def sanitize_text(self, text: str, remove_emojis: bool = False, remove_html: bool = False) -> str:
-        """
-        Sanitize user-provided prompt for safe DB storage and frontend display.
-    
-        Preserves:
-        - Line breaks
-        - Spaces
-        - Unicode characters like emojis (optional)
-    
-        Removes:
-        - Control characters
-        - HTML tags (optional)
-        - Excessive whitespace (excluding newlines)
-        """
-    
         if not text or text.strip() == "":
             raise HTTPException(status_code=400, detail="El texto no puede estar vacío.")
     

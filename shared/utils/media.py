@@ -10,10 +10,6 @@ from shared.models.resources import MediaType
 
 class MediaUtils:
     def sanitize_filename(self, text: str) -> str:
-        """
-        Sanitize a filename by removing unsafe characters and patterns.
-        Prevents directory traversal, control characters, and other unsafe inputs.
-        """
         if not text or text.strip() == "":
             raise HTTPException(status_code=400, detail="El nombre del archivo no puede estar vacío.")
     
@@ -35,7 +31,6 @@ class MediaUtils:
 
 
     def check_file_type(self, filetype: str) -> MediaType:
-        """Validate and return the MediaType enum if allowed, otherwise raise error."""
         if not filetype:
             raise HTTPException(
                 status_code=400,
@@ -60,7 +55,6 @@ class MediaUtils:
 
 
     def determine_subpath(self, filetype: MediaType):
-        """Determine the file type based on its extension."""
         if filetype in {MediaType.IMAGE_PNG, MediaType.IMAGE_JPEG}:
             return "images"
         elif filetype == MediaType.VIDEO_MP4:
@@ -84,7 +78,6 @@ class MediaUtils:
 
 
     def generate_file_hash(self, file: UploadFile) -> tuple[str, int]:
-        """Stream file content to generate a memory-efficient SHA-256 hash."""
         try:
             hasher = hashlib.sha256()
             total_size = 0

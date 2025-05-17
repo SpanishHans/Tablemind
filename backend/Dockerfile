@@ -10,11 +10,7 @@ RUN pip install -e /app/shared
 
 COPY ./backend/app .
 
-# Create templates directory with proper permissions
-RUN mkdir -p /app/templates && chmod -R 777 /app/templates
-
-# Create directory for exports with proper permissions
-RUN mkdir -p /app/uploads/exports && chmod -R 777 /app/uploads
+RUN chmod -R 777 /app/uploads
 
 EXPOSE 8000
 
