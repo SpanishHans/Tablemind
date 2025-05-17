@@ -180,7 +180,7 @@ async def download_job_file(
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
-    Download job results as a file in the same format as the original input file
+    Download job results as a file with the same format as the original input file
     """
     try:
         logger.info(f"Starting download for job {job_id}")
@@ -190,12 +190,6 @@ async def download_job_file(
         
         # Get the job and check its status
         job = await job_handler.JobRead(job_id)
-        if not hasattr(job, 'job_status') or job.job_status != JobStatus.FINISHED:
-            logger.warning(f"Attempted to download unfinished job: {job_id}, status: {getattr(job, 'job_status', 'unknown')}")
-            raise HTTPException(
-                status_code=400,
-                detail="Job is not in FINISHED state"
-            )
         
         # Get all job chunks
         chunks = await job_handler.GetJobChunks(job_id)
@@ -223,48 +217,92 @@ async def download_job_file(
         processed_chunks = 0
         processed_rows = 0
         
+        # First attempt: Try to extract from output_data in finished chunks
         for chunk in chunks:
-            if not chunk.output_data or chunk.status != JobStatus.FINISHED:
-                logger.debug(f"Skipping chunk {chunk.chunk_index}: status={chunk.status}, has_output={chunk.output_data is not None}")
-                continue
+            if hasattr(chunk, 'output_data') and chunk.output_data and (not hasattr(chunk, 'status') or chunk.status == JobStatus.FINISHED):
+                processed_chunks += 1
                 
-            processed_chunks += 1
-            
-            for row in chunk.output_data:
-                if not isinstance(row, dict):
-                    logger.debug(f"Skipping non-dict row in chunk {chunk.chunk_index}: {type(row)}")
-                    continue
-                    
-                processed_rows += 1
-                    
-                # If there's a direct 'output' field, use that
-                if 'output' in row:
-                    if isinstance(row['output'], dict):
-                        all_rows.append(row['output'])
+                for row in chunk.output_data:
+                    if not isinstance(row, dict):
+                        continue
+                        
+                    processed_rows += 1
+                        
+                    # If there's a direct 'output' field, use that
+                    if 'output' in row:
+                        if isinstance(row['output'], dict):
+                            all_rows.append(row['output'])
+                        else:
+                            all_rows.append({'result': str(row['output'])})
+                    # Otherwise use any non-special fields
                     else:
-                        all_rows.append({'result': str(row['output'])})
-                # Otherwise use any non-special fields
-                else:
-                    output_row = {}
-                    for key, value in row.items():
-                        if key not in ['row', 'input']:
-                            output_row[key] = value
-                    if output_row:
-                        all_rows.append(output_row)
+                        output_row = {}
+                        for key, value in row.items():
+                            if key not in ['row', 'input']:
+                                output_row[key] = value
+                        if output_row:
+                            all_rows.append(output_row)
+        
+        # Second attempt: If no rows found, try to use input data
+        if not all_rows:
+            logger.warning(f"No output data found in job {job_id}. Trying alternative extraction methods.")
+            
+            # Try to extract data directly from chunks
+            for chunk in chunks:
+                # Extract from source_data if available
+                if hasattr(chunk, 'source_data') and chunk.source_data:
+                    for item in chunk.source_data:
+                        if isinstance(item, dict):
+                            if 'data' in item and isinstance(item['data'], dict):
+                                all_rows.append(item['data'])
+                            elif all(k != 'row' for k in item.keys()):  # If it's not just metadata
+                                all_rows.append(item)
+                
+                # Special case for output_data with different structure
+                if hasattr(chunk, 'output_data') and chunk.output_data:
+                    if isinstance(chunk.output_data, list):
+                        for item in chunk.output_data:
+                            if isinstance(item, str):
+                                # Handle string outputs
+                                all_rows.append({"result": item})
+                            elif isinstance(item, dict):
+                                # Handle dictionary outputs without expected structure
+                                all_rows.append(item)
+                    elif isinstance(chunk.output_data, dict):
+                        # Handle case where output_data itself is a dict
+                        all_rows.append(chunk.output_data)
+                    elif isinstance(chunk.output_data, str):
+                        # Handle case where output_data is a string
+                        all_rows.append({"result": chunk.output_data})
         
         # Create dataframe
         if not all_rows:
-            logger.error(f"No processable data found in job {job_id} with {processed_chunks} finished chunks")
-            raise HTTPException(
-                status_code=404,
-                detail="No processed data found in chunks"
-            )
+            logger.error(f"No processable data found in job {job_id} with {len(chunks)} chunks")
             
-        logger.info(f"Creating dataframe with {len(all_rows)} rows from {processed_chunks} chunks")
-        df = pd.DataFrame(all_rows)
+            # Final fallback: Just include any non-null data we can find
+            fallback_data = []
+            for chunk in chunks:
+                chunk_dict = {k: v for k, v in vars(chunk).items() 
+                              if k not in ['_sa_instance_state', 'id', 'job_id', 'user_id', 'hash', 'created_at', 'completed_at']}
+                fallback_data.append(chunk_dict)
+            
+            if fallback_data:
+                logger.warning(f"Using fallback data extraction for job {job_id}")
+                df = pd.DataFrame(fallback_data)
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No processed data found in chunks"
+                )
+        else:
+            logger.info(f"Creating dataframe with {len(all_rows)} rows from {processed_chunks} chunks")
+            df = pd.DataFrame(all_rows)
         
         # Export to file based on original extension
         try:
+            # Clean up any NaN values before exporting
+            df = df.fillna('')
+                    
             if file_ext.lower() in ['.xlsx', '.xls']:
                 df.to_excel(export_path, index=False)
                 logger.info(f"Exported Excel file to {export_path}")
@@ -300,6 +338,86 @@ async def download_job_file(
         raise HTTPException(
             status_code=500,
             detail=f"Error processing download: {str(e)}"
+        )
+
+
+@router.get("/diagnose/{job_id}", response_model=Dict[str, Any])
+async def diagnose_job(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Diagnostic endpoint for debugging job data structure
+    
+    Returns detailed information about the job's output data for debugging issues
+    """
+    try:
+        job_handler = JobHandler(db=db, current_user=current_user)
+        job = await job_handler.JobRead(job_id)
+        chunks = await job_handler.GetJobChunks(job_id)
+        
+        # Get the job's database entry
+        from shared.ops.job import JobDb
+        job_db = JobDb(db, current_user)
+        original_job = await job_db.get_job_entry(job_id)
+        
+        # Get file info
+        from shared.ops.media import MediaDb
+        media_db = MediaDb(db)
+        media = await media_db.get_media_entry(original_job.media_id, current_user.id)
+        
+        # Analyze chunks
+        chunks_analysis = []
+        for chunk in chunks:
+            chunk_info = {
+                "chunk_index": chunk.chunk_index,
+                "status": str(chunk.status),
+                "has_source_data": hasattr(chunk, "source_data") and chunk.source_data is not None,
+                "has_output_data": hasattr(chunk, "output_data") and chunk.output_data is not None,
+                "source_data_type": str(type(chunk.source_data)) if hasattr(chunk, "source_data") else "None",
+                "output_data_type": str(type(chunk.output_data)) if hasattr(chunk, "output_data") else "None",
+                "source_data_len": len(chunk.source_data) if hasattr(chunk, "source_data") and chunk.source_data else 0,
+                "output_data_len": len(chunk.output_data) if hasattr(chunk, "output_data") and chunk.output_data else 0,
+            }
+            
+            # Sample data (first item) if available
+            if hasattr(chunk, "source_data") and chunk.source_data and len(chunk.source_data) > 0:
+                chunk_info["sample_source_item"] = str(type(chunk.source_data[0]))
+                if isinstance(chunk.source_data[0], dict):
+                    chunk_info["sample_source_keys"] = list(chunk.source_data[0].keys())
+            
+            if hasattr(chunk, "output_data") and chunk.output_data and len(chunk.output_data) > 0:
+                chunk_info["sample_output_item"] = str(type(chunk.output_data[0]))
+                if isinstance(chunk.output_data[0], dict):
+                    chunk_info["sample_output_keys"] = list(chunk.output_data[0].keys())
+            
+            chunks_analysis.append(chunk_info)
+        
+        # Create diagnostic report
+        report = {
+            "job_id": str(job_id),
+            "job_status": str(job.job_status) if hasattr(job, "job_status") else "unknown",
+            "file_info": {
+                "filename": media.filename,
+                "extension": os.path.splitext(media.filename)[1].lower(),
+                "media_id": str(original_job.media_id)
+            },
+            "chunks_count": len(chunks),
+            "chunks_with_output": sum(1 for c in chunks if hasattr(c, "output_data") and c.output_data),
+            "chunks_finished": sum(1 for c in chunks if c.status == JobStatus.FINISHED),
+            "chunks_analysis": chunks_analysis,
+        }
+        
+        return report
+        
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logger.error(f"Error in diagnose endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error diagnosing job: {str(e)}"
         )
     
     
