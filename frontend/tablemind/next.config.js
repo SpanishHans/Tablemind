@@ -8,6 +8,10 @@ const nextConfig = {
         source: '/api/auth/:path*',
         destination: 'http://backend:8000/auth/:path*',
       },
+       {
+        source: '/api/prompt/:path*',
+        destination: 'http://backend:8000/prompt/:path*',
+      },
       {
         source: '/api/:path*',
         destination: 'http://backend:8000/:path*',

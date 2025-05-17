@@ -1,13 +1,54 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { FaBars, FaTimes } from "react-icons/fa";
+import { FaBars, FaTimes, FaSignOutAlt } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function Topbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Verificar si el usuario está logueado al montar el componente
+    const token = localStorage.getItem("access_token");
+    setIsLoggedIn(!!token);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      
+      if (!token) {
+        return;
+      }
+      
+      // Llamar al endpoint de logout en el backend
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      // Independientemente de la respuesta, limpiamos el localStorage
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("currentPromptId");
+      localStorage.removeItem("currentMediaId");
+      
+      // Redirigir al usuario a la página de inicio de sesión
+      router.push("/login");
+      
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      // Incluso si hay un error, intentamos cerrar la sesión localmente
+      localStorage.removeItem("access_token");
+      router.push("/login");
+    }
+  };
 
   return (
     <motion.header
@@ -36,23 +77,46 @@ export default function Topbar() {
             Contacto
           </Link>
 
-          <Link href="/login">
-            <Button
-              variant="secondary"
-              className="cursor-pointer bg-gray-800 hover:bg-gray-700 text-white"
-            >
-              Iniciar Sesión
-            </Button>
-          </Link>
-          
-          <Link href="/register">
-            <Button
-              variant="default"
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-none text-white hover:text-white font-semibold cursor-pointer"
-            >
-              Comenzar
-            </Button>
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link href="/prompt">
+                <Button
+                  variant="secondary"
+                  className="cursor-pointer bg-gray-800 hover:bg-gray-700 text-white"
+                >
+                  Dashboard
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                className="cursor-pointer bg-red-600 hover:bg-red-700 text-white border-none"
+                onClick={handleLogout}
+              >
+                <FaSignOutAlt className="mr-2" />
+                Cerrar Sesión
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button
+                  variant="secondary"
+                  className="cursor-pointer bg-gray-800 hover:bg-gray-700 text-white"
+                >
+                  Iniciar Sesión
+                </Button>
+              </Link>
+              
+              <Link href="/register">
+                <Button
+                  variant="default"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-none text-white hover:text-white font-semibold cursor-pointer"
+                >
+                  Comenzar
+                </Button>
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Mobile Menu Button */}
@@ -104,23 +168,49 @@ export default function Topbar() {
             Contacto
           </Link>
           
-          <Link href="/login">
-            <Button
-              variant="outline"
-              className="w-full text-white bg-gray-700 hover:bg-gray-600 cursor-pointer"
-            >
-              Iniciar Sesión
-            </Button>
-          </Link>
-          
-          <Link href="/register">
-            <Button
-              variant="outline"
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-none text-white hover:text-white font-semibold cursor-pointer"
-            >
-              Comenzar
-            </Button>
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link href="/prompt" onClick={() => setMenuOpen(false)}>
+                <Button
+                  variant="outline"
+                  className="w-full text-white bg-gray-700 hover:bg-gray-600 cursor-pointer"
+                >
+                  Dashboard
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                className="w-full bg-red-600 hover:bg-red-700 text-white border-none"
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleLogout();
+                }}
+              >
+                <FaSignOutAlt className="mr-2" />
+                Cerrar Sesión
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setMenuOpen(false)}>
+                <Button
+                  variant="outline"
+                  className="w-full text-white bg-gray-700 hover:bg-gray-600 cursor-pointer"
+                >
+                  Iniciar Sesión
+                </Button>
+              </Link>
+              
+              <Link href="/register" onClick={() => setMenuOpen(false)}>
+                <Button
+                  variant="outline"
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-none text-white hover:text-white font-semibold cursor-pointer"
+                >
+                  Comenzar
+                </Button>
+              </Link>
+            </>
+          )}
         </motion.div>
       )}
     </motion.header>

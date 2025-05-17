@@ -1,9 +1,7 @@
-
 "use client";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaArrowRight, FaLightbulb } from "react-icons/fa";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import Topbar from "@/components/layout/Topbar";
@@ -13,7 +11,9 @@ import { Button } from "@/components/ui/button";
 export default function PromptPage() {
   const router = useRouter();
   const [promptText, setPromptText] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // Check authentication on component mount
   useEffect(() => {
@@ -23,15 +23,64 @@ export default function PromptPage() {
         // Redirect to login if no token is found
         router.push("/login");
       } else {
-        setIsLoading(false);
+        setCheckingAuth(false);
       }
     };
     
     checkAuth();
   }, [router]);
 
+  // Manejar el envío del formulario
+  const handleSubmit = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!promptText.trim()) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setErrorMsg("");
+      
+      // Preparar los datos para enviar al backend
+      const formData = new FormData();
+      // Usando el nombre del campo que espera el backend según schemas/prompt.py
+      formData.append("prompt_text", promptText);
+
+      // Usar el proxy API configurado en next.config.js que corresponde a 'router/prompt.py'
+      const apiUrl = "/api/prompt/new";
+
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("access_token")}`
+        }
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setErrorMsg(data.detail || "Error al guardar el prompt");
+        return;
+      }
+
+      // Guardar el prompt_id en localStorage para usarlo en siguientes pasos
+      // La respuesta viene en formato ResponsePrompt según schemas/prompt.py
+      localStorage.setItem("currentPromptId", data.prompt_id);
+      
+      // Redirigir al usuario a la siguiente página
+      router.push("/model-select");
+    } catch (error) {
+      console.error("Error de conexión con el servidor:", error);
+      setErrorMsg("Error de conexión con el servidor. Inténtalo de nuevo.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // If still checking authentication, show loading state
-  if (isLoading) {
+  if (checkingAuth) {
     return (
       <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
@@ -70,32 +119,29 @@ export default function PromptPage() {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <div>
+              {errorMsg && (
+                <div className="bg-red-600/80 text-white p-3 rounded mb-4 text-sm">
+                  {errorMsg}
+                </div>
+              )}
               <div className="mb-6">
                 <textarea
                   className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-4 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y"
-                  placeholder="Por ejemplo: &apos;Analiza estos datos de ventas y muéstrame las tendencias de los últimos 3 meses&apos; o &apos;Crea un resumen de las respuestas de los clientes agrupadas por sentimiento&apos;"
+                  placeholder="Por ejemplo: 'Analiza estos datos de ventas y muéstrame las tendencias de los últimos 3 meses' o 'Crea un resumen de las respuestas de los clientes agrupadas por sentimiento'"
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
                 ></textarea>
               </div>
               <div className="flex justify-end">
-                <Link href="/model-select">
-                  <Button 
-                    type="button" 
-                    disabled={!promptText.trim()}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={(e) => {
-                      if (!promptText.trim()) {
-                        e.preventDefault();
-                      } else {
-                        console.log("Prompt submitted:", promptText);
-                      }
-                    }}
-                  >
-                    <span>Siguiente</span>
-                    <FaArrowRight />
-                  </Button>
-                </Link>
+                <Button 
+                  type="button" 
+                  disabled={!promptText.trim() || isLoading}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleSubmit}
+                >
+                  <span>{isLoading ? "Guardando..." : "Siguiente"}</span>
+                  <FaArrowRight />
+                </Button>
               </div>
             </div>
           </motion.div>
