@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaArrowRight, FaLightbulb } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import Image from 'next/image';
 
 import Topbar from "@/components/layout/Topbar";
 import Footer from "@/components/layout/Footer";
@@ -103,8 +104,14 @@ export default function PromptPage() {
             transition={{ duration: 0.5 }}
           >
             <div className="flex justify-center mb-6">
-              <div className="w-20 h-20">
-                <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
+              <div className="w-20 h-20 flex items-center justify-center relative">
+                <Image
+                  src="/images/logo.jpeg"
+                  alt="TableMind Logo"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
             </div>
             <h1 className="text-3xl font-bold">¿Qué trabajo quieres realizar?</h1>

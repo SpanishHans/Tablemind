@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { motion } from "framer-motion";
-import { FaUser, FaLock, FaGoogle, FaMicrosoft } from "react-icons/fa";
+import Link from "next/link";
+import { useState } from "react";
+import { FaGoogle, FaLock, FaMicrosoft, FaUser } from "react-icons/fa";
+import Image from 'next/image';
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -64,8 +65,14 @@ export default function Login() {
                   className="text-center"
                 >
                   <div className="mb-6 flex justify-center">
-                    <div className="w-32 h-32 flex items-center justify-center">
-                      <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
+                    <div className="w-32 h-32 flex items-center justify-center relative">
+                      <Image
+                        src="/images/logo.jpeg"
+                        alt="TableMind Logo"
+                        fill
+                        className="object-contain"
+                        priority
+                      />
                     </div>
                   </div>
                   <h2 className="text-3xl font-bold mb-3">Bienvenido a TableMind</h2>

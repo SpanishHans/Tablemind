@@ -26,7 +26,7 @@ class ResponseJob(BaseModel):
         """Override dict method to include all fields"""
         try:
             return super().dict(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             # Create a simplified dictionary with all fields
             result = {}
             for field_name in self.__fields__:

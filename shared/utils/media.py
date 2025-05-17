@@ -5,7 +5,6 @@ import unicodedata
 
 from typing import List
 from fastapi import File
-from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
 
 from shared.models.resources import MediaType
 
