@@ -44,8 +44,8 @@ async def estimate_job(
     current_user: CurrentUser = Depends(get_current_user)
 ):
     return await JobHandler(db=db, current_user=current_user).EstimateJob(
-        prompt_id=form_params.prompt_id, 
-        media_id=form_params.media_id, 
+        prompt_id=form_params.prompt_id,
+        media_id=form_params.media_id,
         model_id=form_params.model_id,
         focus_column=form_params.focus_column,
         granularity=GranularityLevel[query_params.granularity],
@@ -67,8 +67,8 @@ async def start_job(
 
     # Estimate the job first to calculate tokens and costs
     job = await job_handler.EstimateJob(
-        prompt_id=form_params.prompt_id, 
-        media_id=form_params.media_id, 
+        prompt_id=form_params.prompt_id,
+        media_id=form_params.media_id,
         model_id=form_params.model_id,
         focus_column=form_params.focus_column,
         granularity=GranularityLevel[query_params.granularity],
@@ -124,7 +124,7 @@ async def check_job_status(
     try:
         created_at = job.created_at if hasattr(job, "created_at") and job.created_at is not None else datetime.now()
         completed_at = None
-        if (hasattr(job, "completed_at") and hasattr(job, "job_status") 
+        if (hasattr(job, "completed_at") and hasattr(job, "job_status")
             and job.job_status == JobStatus.FINISHED and job.completed_at is not None):
             completed_at = job.completed_at
 
@@ -159,7 +159,7 @@ async def get_job_results(
         "chunks": [],
         "completed": hasattr(job, "job_status") and job.job_status == JobStatus.FINISHED
     }
-    
+
     for chunk in chunks:
         chunk_data = {
             "chunk_index": chunk.chunk_index,
@@ -169,7 +169,7 @@ async def get_job_results(
             "output_data": chunk.output_data if chunk.status == JobStatus.FINISHED else None
         }
         response["chunks"].append(chunk_data)
-    
+
     return response
 
 
@@ -184,50 +184,50 @@ async def download_job_file(
     """
     try:
         logger.info(f"Starting download for job {job_id}")
-        
+
         # Initialize the job handler
         job_handler = JobHandler(db=db, current_user=current_user)
-        
+
         # Get the job and check its status
-        job = await job_handler.JobRead(job_id)
-        
+        await job_handler.JobRead(job_id)
+
         # Get all job chunks
         chunks = await job_handler.GetJobChunks(job_id)
         logger.info(f"Found {len(chunks)} chunks for job {job_id}")
-        
+
         # Get the original file info from the database
         from shared.ops.job import JobDb
         job_db = JobDb(db, current_user)
         original_job = await job_db.get_job_entry(job_id)
-        
+
         from shared.ops.media import MediaDb
         media_db = MediaDb(db)
         media = await media_db.get_media_entry(original_job.media_id, current_user.id)
         filename = media.filename
         file_ext = os.path.splitext(filename)[1].lower()
         logger.info(f"Original file: {filename}, extension: {file_ext}")
-        
+
         export_dir = os.path.join("/app/uploads", "exports")
         os.makedirs(export_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         export_filename = f"processed_{os.path.splitext(filename)[0]}_{timestamp}{file_ext}"
         export_path = os.path.join(export_dir, export_filename)
-        
+
         all_rows = []
         processed_chunks = 0
         processed_rows = 0
-        
+
         # First attempt: Try to extract from output_data in finished chunks
         for chunk in chunks:
             if hasattr(chunk, 'output_data') and chunk.output_data and (not hasattr(chunk, 'status') or chunk.status == JobStatus.FINISHED):
                 processed_chunks += 1
-                
+
                 for row in chunk.output_data:
                     if not isinstance(row, dict):
                         continue
-                        
+
                     processed_rows += 1
-                        
+
                     # If there's a direct 'output' field, use that
                     if 'output' in row:
                         if isinstance(row['output'], dict):
@@ -242,11 +242,11 @@ async def download_job_file(
                                 output_row[key] = value
                         if output_row:
                             all_rows.append(output_row)
-        
+
         # Second attempt: If no rows found, try to use input data
         if not all_rows:
             logger.warning(f"No output data found in job {job_id}. Trying alternative extraction methods.")
-            
+
             # Try to extract data directly from chunks
             for chunk in chunks:
                 # Extract from source_data if available
@@ -257,7 +257,7 @@ async def download_job_file(
                                 all_rows.append(item['data'])
                             elif all(k != 'row' for k in item.keys()):  # If it's not just metadata
                                 all_rows.append(item)
-                
+
                 # Special case for output_data with different structure
                 if hasattr(chunk, 'output_data') and chunk.output_data:
                     if isinstance(chunk.output_data, list):
@@ -274,18 +274,18 @@ async def download_job_file(
                     elif isinstance(chunk.output_data, str):
                         # Handle case where output_data is a string
                         all_rows.append({"result": chunk.output_data})
-        
+
         # Create dataframe
         if not all_rows:
             logger.error(f"No processable data found in job {job_id} with {len(chunks)} chunks")
-            
+
             # Final fallback: Just include any non-null data we can find
             fallback_data = []
             for chunk in chunks:
-                chunk_dict = {k: v for k, v in vars(chunk).items() 
+                chunk_dict = {k: v for k, v in vars(chunk).items()
                               if k not in ['_sa_instance_state', 'id', 'job_id', 'user_id', 'hash', 'created_at', 'completed_at']}
                 fallback_data.append(chunk_dict)
-            
+
             if fallback_data:
                 logger.warning(f"Using fallback data extraction for job {job_id}")
                 df = pd.DataFrame(fallback_data)
@@ -297,12 +297,12 @@ async def download_job_file(
         else:
             logger.info(f"Creating dataframe with {len(all_rows)} rows from {processed_chunks} chunks")
             df = pd.DataFrame(all_rows)
-        
+
         # Export to file based on original extension
         try:
             # Clean up any NaN values before exporting
             df = df.fillna('')
-                    
+
             if file_ext.lower() in ['.xlsx', '.xls']:
                 df.to_excel(export_path, index=False)
                 logger.info(f"Exported Excel file to {export_path}")
@@ -323,7 +323,7 @@ async def download_job_file(
                 status_code=500,
                 detail=f"Error exporting file: {str(e)}"
             )
-        
+
         # Return file response
         logger.info(f"Successfully processed job {job_id}, returning file {export_filename}")
         return FileResponse(
@@ -349,24 +349,24 @@ async def diagnose_job(
 ):
     """
     Diagnostic endpoint for debugging job data structure
-    
+
     Returns detailed information about the job's output data for debugging issues
     """
     try:
         job_handler = JobHandler(db=db, current_user=current_user)
         job = await job_handler.JobRead(job_id)
         chunks = await job_handler.GetJobChunks(job_id)
-        
+
         # Get the job's database entry
         from shared.ops.job import JobDb
         job_db = JobDb(db, current_user)
         original_job = await job_db.get_job_entry(job_id)
-        
+
         # Get file info
         from shared.ops.media import MediaDb
         media_db = MediaDb(db)
         media = await media_db.get_media_entry(original_job.media_id, current_user.id)
-        
+
         # Analyze chunks
         chunks_analysis = []
         for chunk in chunks:
@@ -380,20 +380,20 @@ async def diagnose_job(
                 "source_data_len": len(chunk.source_data) if hasattr(chunk, "source_data") and chunk.source_data else 0,
                 "output_data_len": len(chunk.output_data) if hasattr(chunk, "output_data") and chunk.output_data else 0,
             }
-            
+
             # Sample data (first item) if available
             if hasattr(chunk, "source_data") and chunk.source_data and len(chunk.source_data) > 0:
                 chunk_info["sample_source_item"] = str(type(chunk.source_data[0]))
                 if isinstance(chunk.source_data[0], dict):
                     chunk_info["sample_source_keys"] = list(chunk.source_data[0].keys())
-            
+
             if hasattr(chunk, "output_data") and chunk.output_data and len(chunk.output_data) > 0:
                 chunk_info["sample_output_item"] = str(type(chunk.output_data[0]))
                 if isinstance(chunk.output_data[0], dict):
                     chunk_info["sample_output_keys"] = list(chunk.output_data[0].keys())
-            
+
             chunks_analysis.append(chunk_info)
-        
+
         # Create diagnostic report
         report = {
             "job_id": str(job_id),
@@ -408,9 +408,9 @@ async def diagnose_job(
             "chunks_finished": sum(1 for c in chunks if c.status == JobStatus.FINISHED),
             "chunks_analysis": chunks_analysis,
         }
-        
+
         return report
-        
+
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -419,6 +419,3 @@ async def diagnose_job(
             status_code=500,
             detail=f"Error diagnosing job: {str(e)}"
         )
-    
-    
-
