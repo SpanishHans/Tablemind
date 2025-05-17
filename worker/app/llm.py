@@ -1,8 +1,12 @@
 import json
 from typing import Dict, Any
-from fastapi import HTTPException
 from google import genai
 from google.genai import types
+
+class GenerationException(Exception):
+    """Custom exception for generation errors."""
+    pass
+
 
 def generate_response(
         prompt_text: str,
@@ -41,8 +45,7 @@ def generate_response(
         return response.text
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"No se pudo ejecutar la solicitud: {str(e)}")
-
+        raise GenerationException(f"Failed to generate content: {str(e)}")
 
 
 def process_chunk(
@@ -76,4 +79,3 @@ def process_chunk(
         processed_chunk = chunk_data.copy()
         processed_chunk["error"] = str(e)
         return processed_chunk
-
