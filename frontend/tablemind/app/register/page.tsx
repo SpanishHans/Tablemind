@@ -15,26 +15,64 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí iría la lógica de registro
-    console.log("Register attempt with:", { name, email, password, acceptTerms });
+    setErrorMsg("");
+    setSuccessMsg("");
+    if (!acceptTerms) {
+      setErrorMsg("Debes aceptar los términos y condiciones.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg("Las contraseñas no coinciden.");
+      return;
+    }
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("username", name);
+      formData.append("email", email);
+      formData.append("password", password);
+
+      const res = await fetch("http://localhost:8000/auth/registro", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setErrorMsg(data.detail || "Error al registrarse");
+      } else {
+        setSuccessMsg("Registro exitoso. Ahora puedes iniciar sesión.");
+        setName("");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+        setAcceptTerms(false);
+      }
+    } catch {
+      setErrorMsg("Error de conexión con el servidor.");
+    }
+    setLoading(false);
   };
 
   return (
     <div className="min-h-screen w-full bg-gray-900 text-white">
       <Topbar />
-      
       <div className="pt-20 pb-20">
         <div className="max-w-4xl mx-auto p-8">
-          <motion.div 
+          <motion.div
             className="bg-gray-800 rounded-lg shadow-xl overflow-hidden"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
             <div className="flex flex-col md:flex-row">
-              {/* Left Side - Information */}
               <div className="w-full md:w-5/12 bg-gradient-to-br from-blue-500 to-purple-500 p-8 flex flex-col justify-center items-center">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -43,7 +81,6 @@ export default function Register() {
                   className="text-center"
                 >
                   <div className="mb-6 flex justify-center">
-                    {/* Logo de TableMind */}
                     <div className="w-32 h-32 flex items-center justify-center">
                       <img src="/images/logo.jpeg" alt="TableMind Logo" className="w-full h-full" />
                     </div>
@@ -52,7 +89,6 @@ export default function Register() {
                   <p className="text-blue-100 mb-6">
                     Únete a miles de profesionales que usan TableMind para analizar datos de Excel con IA
                   </p>
-                  
                   <div className="space-y-4 text-left">
                     <div className="flex items-start">
                       <div className="bg-white/20 rounded-full p-2 mr-3 mt-1">
@@ -81,8 +117,6 @@ export default function Register() {
                   </div>
                 </motion.div>
               </div>
-
-              {/* Right Side - Registration Form */}
               <div className="w-full md:w-7/12 p-8">
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -93,8 +127,13 @@ export default function Register() {
                     <h2 className="text-2xl font-bold mb-1">Crear una cuenta</h2>
                     <p className="text-gray-400">Completa el formulario para comenzar</p>
                   </div>
-
                   <form onSubmit={handleSubmit}>
+                    {errorMsg && (
+                      <div className="bg-red-600 text-white p-2 rounded mb-4">{errorMsg}</div>
+                    )}
+                    {successMsg && (
+                      <div className="bg-green-600 text-white p-2 rounded mb-4">{successMsg}</div>
+                    )}
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="name">
                         Nombre completo
@@ -114,7 +153,6 @@ export default function Register() {
                         />
                       </div>
                     </div>
-
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="email">
                         Correo electrónico
@@ -134,7 +172,6 @@ export default function Register() {
                         />
                       </div>
                     </div>
-
                     <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="password">
                         Contraseña
@@ -154,7 +191,6 @@ export default function Register() {
                         />
                       </div>
                     </div>
-
                     <div className="mb-6">
                       <label className="block text-gray-400 text-sm mb-2" htmlFor="confirm-password">
                         Confirmar contraseña
@@ -174,7 +210,6 @@ export default function Register() {
                         />
                       </div>
                     </div>
-
                     <div className="flex items-center mb-6">
                       <input
                         id="accept-terms"
@@ -188,15 +223,14 @@ export default function Register() {
                         Acepto los <Link href="/terms" className="text-purple-400 hover:text-purple-300">Términos de Servicio</Link> y <Link href="/privacy" className="text-purple-400 hover:text-purple-300">Política de Privacidad</Link>
                       </label>
                     </div>
-
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 py-3 rounded-lg font-semibold"
+                      disabled={loading}
                     >
-                      Crear Cuenta
+                      {loading ? "Registrando..." : "Crear Cuenta"}
                     </Button>
                   </form>
-
                   <div className="mt-6">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
@@ -206,7 +240,6 @@ export default function Register() {
                         <span className="px-2 bg-gray-800 text-gray-400">O regístrate con</span>
                       </div>
                     </div>
-
                     <div className="mt-6 grid grid-cols-2 gap-3">
                       <button className="bg-gray-700 hover:bg-gray-600 py-2 px-4 rounded-lg flex items-center justify-center">
                         <FaGoogle className="mr-2" />
@@ -218,7 +251,6 @@ export default function Register() {
                       </button>
                     </div>
                   </div>
-
                   <div className="mt-6 text-center">
                     <p className="text-gray-400">
                       ¿Ya tienes una cuenta?{" "}
@@ -233,7 +265,6 @@ export default function Register() {
           </motion.div>
         </div>
       </div>
-
       <Footer />
     </div>
   );
