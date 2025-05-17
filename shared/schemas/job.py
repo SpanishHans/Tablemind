@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from fastapi import Form, Query
 import uuid
 from datetime import datetime
@@ -54,6 +54,17 @@ class ResponseJobStatus(BaseModel):
     chunks_failed: int = Field(..., description='Número de chunks fallidos')
     created_at: datetime = Field(..., description='Fecha de creación del trabajo')
     completed_at: Optional[datetime] = Field(None, description='Fecha de finalización del trabajo')
+
+
+class ResponseJobDownload(BaseModel):
+    job_id: str = Field(..., description='UUID del trabajo')
+    filename: str = Field(..., description='Nombre del archivo')
+    status: str = Field(..., description='Estado de la descarga')
+    download_url: str = Field(..., description='URL para descargar el archivo')
+    created_at: datetime = Field(..., description='Fecha de creación')
+    file_format: str = Field(..., description='Formato del archivo (csv, excel, etc.)')
+    rows_processed: int = Field(..., description='Número de filas procesadas')
+    output_columns: List[str] = Field(..., description='Columnas en el archivo de salida')
 
 
 class FormParams(BaseModel):

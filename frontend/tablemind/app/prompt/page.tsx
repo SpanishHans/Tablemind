@@ -71,7 +71,7 @@ export default function PromptPage() {
       localStorage.setItem("currentPromptId", data.prompt_id);
       
       // Redirigir al usuario a la siguiente página
-      router.push("/model-select");
+      router.push("/load");
     } catch (error) {
       console.error("Error de conexión con el servidor:", error);
       setErrorMsg("Error de conexión con el servidor. Inténtalo de nuevo.");
