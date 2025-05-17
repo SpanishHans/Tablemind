@@ -13,7 +13,7 @@ from shared.utils.media import MediaUtils
 from shared.models.resources import MediaType
 
 from shared.handlers.media import MediaHandler
-from shared.schemas.media import MediaIO
+from shared.schemas.media import ResponseMedia
 from shared.schemas.generic import ResponseMessage
 
 router = APIRouter(tags=["Archivos"], prefix = '/media')
@@ -26,15 +26,15 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.get("/fetch/one", response_class=FileResponse)
 async def get_media(
-    id: uuid.UUID = Query(..., description="UUID del media a obtener"),
+    media_id: uuid.UUID = Query(..., description="UUID del media a obtener"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileRead(id)
+    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileRead(media_id)
 
 
 
-@router.get("/fetch/all", response_model=List[MediaIO])
+@router.get("/fetch/all", response_model=List[ResponseMedia])
 async def get_all_media(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
@@ -43,7 +43,7 @@ async def get_all_media(
 
 
 
-@router.post("/upload/tabular", response_model=MediaIO)
+@router.post("/upload/tabular", response_model=ResponseMedia)
 async def upload_tabular(
     file: UploadFile = Depends(MediaUtils().validate_file_type(allowed_types=[
         MediaType.TABLE_EXCEL,
@@ -58,7 +58,7 @@ async def upload_tabular(
 
 
 
-@router.post("/upload/media", response_model=MediaIO)
+@router.post("/upload/media", response_model=ResponseMedia)
 async def upload_media(
     file: UploadFile = Depends(MediaUtils().validate_file_type(allowed_types=[
         MediaType.IMAGE_PNG,
@@ -72,21 +72,21 @@ async def upload_media(
 
 
 
-@router.put("/edit", response_model=MediaIO)
+@router.put("/edit", response_model=ResponseMedia)
 async def edit_media(
-    id: uuid.UUID = Form(..., description="UUID del media a editar"),
+    media_id: uuid.UUID = Form(..., description="UUID del media a editar"),
     filename: str = Form(..., description="Nuevo nombre"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileRename(id=id,new_filename=filename)
+    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileRename(id=media_id,new_filename=filename)
 
 
 
 @router.delete("/delete/", response_model=ResponseMessage)
 async def delete_media(
-    id: uuid.UUID = Form(..., description="UUID del media a eliminar"),
+    media_id: uuid.UUID = Form(..., description="UUID del media a eliminar"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileDelete(id)
+    return await MediaHandler(db=db, upload_dir=UPLOAD_DIR, current_user=current_user).FileDelete(media_id)

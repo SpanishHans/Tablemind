@@ -14,6 +14,7 @@ from shared.auth.auth import get_current_user, CurrentUser
 from shared.models.job import GranularityLevel
 
 from shared.schemas.dispatcher import AddPayload
+from shared.schemas.job import ResponseJob, FormParams, QueryParams
 from shared.handlers.job import JobHandler
 
 HOST_REDS = os.getenv("HOST_REDS", "redis")
@@ -30,26 +31,21 @@ dispatcher = Celery(
 
 
 
-@router.post("/estimar")
+@router.post("/estimar", response_model=ResponseJob)
 async def create_job(
-    prompt_id: uuid.UUID = Form(..., description='UUID del prompt'),
-    media_id: uuid.UUID = Form(..., description='UUID del archivo'),
-    model_id: uuid.UUID = Form(..., description='UUID del modelo'),
-    focus_column: Optional[str] = Form(None, description='Columna para modo celda.'),
-    granularity: str = Query(..., description='Tipo de contexto: fila completa o columna específica'),
-    verbosity: float = Query(..., min=0.2, max=2, description='Verbosidad de output: Conciso o Detallado'),
-    chunk_size: int = Query(..., description='Cantidad de filas en trabajo'),
+    form_params: FormParams = Depends(FormParams.as_form),
+    query_params: QueryParams = Depends(QueryParams.as_query),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
     return await JobHandler(db=db, current_user=current_user).EstimateJob(
-        prompt_id=prompt_id, 
-        media_id=media_id, 
-        model_id=model_id,
-        granularity=GranularityLevel[granularity],
-        verbosity=verbosity,
-        chunk_size=chunk_size,
-        focus_column=focus_column
+        prompt_id=form_params.prompt_id, 
+        media_id=form_params.media_id, 
+        model_id=form_params.model_id,
+        focus_column=form_params.focus_column,
+        granularity=GranularityLevel[query_params.granularity],
+        verbosity=query_params.verbosity,
+        chunk_size=query_params.chunk_size,
     )
 
 

@@ -4,7 +4,7 @@ from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.ops.model import ModelDb
-from shared.schemas.model import ModelIO
+from shared.schemas.model import RequestModel
 
 
 class ModelHandler:
@@ -14,11 +14,11 @@ class ModelHandler:
 
 
 
-    async def ModelRead(self, id: uuid.UUID) -> ModelIO:
+    async def ModelRead(self, id: uuid.UUID) -> RequestModel:
 
         model = await self.modelondb.get_model_entry(id)
-        return ModelIO(
-            id=model.id,
+        return RequestModel(
+            model_id=model.id,
             name=model.name,
             provider=model.provider,
             cost_per_1m_input=model.cost_per_1m_input,
@@ -31,13 +31,13 @@ class ModelHandler:
 
 
 
-    async def ModelReadAll(self) -> List[ModelIO]:
+    async def ModelReadAll(self) -> List[RequestModel]:
 
         modelqueries = await self.modelondb.get_all_model_entries()
         models = []
         for model in modelqueries:
-            models.append(ModelIO(
-                id=model.id,
+            models.append(RequestModel(
+                model_id=model.id,
                 name=model.name,
                 provider=model.provider,
                 cost_per_1m_input=model.cost_per_1m_input,

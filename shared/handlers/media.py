@@ -12,7 +12,7 @@ from shared.utils.text import TextUtils
 from shared.utils.media import MediaUtils
 
 from shared.ops.media import MediaDb, MediaDisk
-from shared.schemas.media import MediaIO
+from shared.schemas.media import ResponseMedia
 from shared.schemas.generic import ResponseMessage
 
 class MediaHandler:
@@ -28,7 +28,7 @@ class MediaHandler:
 
 
 
-    async def FileCreate(self, file: UploadFile) -> MediaIO:
+    async def FileCreate(self, file: UploadFile) -> ResponseMedia:
         if not file or not file.filename or not file.content_type:
                 raise HTTPException(status_code=400, detail="Archivo inválido o incompleto.")
         
@@ -42,7 +42,7 @@ class MediaHandler:
         if existing_file:
             await self.mediaondisk.rename_file(user_id=self.user.id, old_filename=existing_file.filename, new_filename=filename, filepath=existing_file.filepath)
             await self.mediaondb.update_media_entry(id=existing_file.id, owner=self.user.id, filename=filename)
-            return MediaIO(id=existing_file.id, media_type=existing_file.media_type)
+            return ResponseMedia(media_id=existing_file.id)
 
 
         media = await self.mediaondb.create_media_entry(
@@ -54,14 +54,11 @@ class MediaHandler:
             )
         file.file.seek(0)
         await self.mediaondisk.save_file(self.user.id, file, filename, media.filepath)
-
-        return MediaIO(
-            id=media.id,
-            media_type=media.media_type)
+        return ResponseMedia(media_id=media.id)
     
     
     
-    async def FileRename(self, id: uuid.UUID, new_filename: str) -> MediaIO:
+    async def FileRename(self, id: uuid.UUID, new_filename: str) -> ResponseMedia:
         filename = self.mediautils.sanitize_filename(new_filename)
         media = await self.mediaondb.get_media_entry(id=id, owner=self.user.id)
         if not media:
@@ -69,7 +66,7 @@ class MediaHandler:
         
         if media.filename == filename:
             # No need to rename if the filename is the same
-            return MediaIO(id=media.id, media_type=media.media_type)
+            return ResponseMedia(media_id=media.id)
 
         await self.mediaondisk.rename_file(
             user_id=self.user.id,
@@ -82,9 +79,7 @@ class MediaHandler:
             owner=self.user.id,
             filename=filename
         )
-        
-        
-        return MediaIO(id=updated_media.id, media_type=updated_media.media_type)
+        return ResponseMedia(media_id=updated_media.id)
 
 
 
@@ -100,15 +95,12 @@ class MediaHandler:
 
 
 
-    async def FileReadAll(self) -> List[MediaIO]:
+    async def FileReadAll(self) -> List[ResponseMedia]:
 
         mediaqueries = await self.mediaondb.get_all_media_entries(owner=self.user.id)
         medias = []
         for i in mediaqueries:
-            medias.append(MediaIO(
-                id=i.id,
-                media_type=i.media_type.value,
-            ))
+            medias.append(ResponseMedia(media_id=i.id))
         return medias
 
 

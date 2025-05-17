@@ -4,7 +4,6 @@ from typing import List, Optional, cast
 
 from fastapi import HTTPException
 
-from pandas.core.internals import api
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.auth.auth import CurrentUser
@@ -14,8 +13,6 @@ from shared.utils.media import MediaUtils
 from shared.utils.job import JobUtils, ChunkUtils
 
 from shared.models.job import GranularityLevel, JobStatus
-from shared.models.user import User_on_db
-from shared.models.resources import File_on_db, Prompt_on_db, Model_on_db
 
 from shared.ops.job import JobDb
 from shared.ops.media import MediaDb
@@ -24,8 +21,9 @@ from shared.ops.model import ModelDb
 from shared.ops.user import UsersDb
 
 from shared.schemas.generic import ResponseMessage
-from shared.schemas.job import JobIO
+from shared.schemas.job import ResponseJob
 
+APIKEYGEMINI = os.getenv("APIKEYGEMINI", "")
 
 class JobHandler:
     def __init__(
@@ -73,18 +71,16 @@ class JobHandler:
         full_path = os.path.join(media.filepath, media.filename)
         df = self.jobutils.load_dataframe(full_path, media.media_type)
 
-        # Basic checks
         if granularity == GranularityLevel.PER_CELL and not focus_column:
             raise HTTPException(status_code=400, detail="se requiere focus_column para modo PER_CELL")
 
         if focus_column and focus_column not in df.columns:
             raise HTTPException(status_code=400, detail=f"No se encontró '{focus_column}' en df.")
 
-        # Estimate tokens and cost (replace with actual logic)
         self.input_tokens = self.jobutils.estimate_input_tokens(
             df=df,
             model=model,
-            api_keys='AIzaSyAydgpspYNE_FJjWpK-NJf9udZcMl5pDqU',
+            api_keys=APIKEYGEMINI,
             granularity=granularity,
             focus_column=focus_column
         )
@@ -103,7 +99,7 @@ class JobHandler:
             "cost_per_1m_input": model.cost_per_1m_input,
             "cost_per_1m_output": model.cost_per_1m_output,
             "handling_fee": price,
-            "estimated_cost_usd": self.cost_usd
+            "estimated_cost": self.cost_usd
         }
 
 
@@ -113,7 +109,7 @@ class JobHandler:
             granularity: GranularityLevel,
             chunk_size: int,
             focus_column: Optional[str]
-        ) -> JobIO:
+        ) -> ResponseJob:
         media = cast(File_on_db, self.media)
         model = cast(Model_on_db, self.model)
         prompt = cast(Prompt_on_db, self.prompt)
@@ -123,7 +119,7 @@ class JobHandler:
         dup = await self.jobondb.check_job_duplicity(self.hash)
         if dup:
             new_job = await self.jobondb.update_job_entry(id=dup.id)
-            return JobIO(
+            return ResponseJob(
                 id=dup.id,
                 user_id=self.user.id,
                 model_id=model.id,
@@ -146,7 +142,7 @@ class JobHandler:
             output_token_count=self.output_tokens,
             hash=self.hash,
         )
-        return JobIO(
+        return ResponseJob(
             id=job.id,
             user_id=self.user.id,
             model_id=model.id,
@@ -161,7 +157,7 @@ class JobHandler:
 
 
 
-    async def JobUpdate(self, id: uuid.UUID, job_text: str) -> JobIO:
+    async def JobUpdate(self, id: uuid.UUID, job_text: str) -> ResponseJob:
         media = cast(File_on_db, self.media)
         model = cast(Model_on_db, self.model)
         prompt = cast(Prompt_on_db, self.prompt)
@@ -170,7 +166,7 @@ class JobHandler:
         self.hash = self.textutils.generate_text_hash(job_text)
 
         job = await self.jobondb.update_job_entry(id=id)
-        return JobIO(
+        return ResponseJob(
             id=job.id,
             user_id=self.user.id,
             model_id=model.id,
@@ -185,13 +181,13 @@ class JobHandler:
 
 
 
-    async def JobRead(self, id: uuid.UUID) -> JobIO:
+    async def JobRead(self, id: uuid.UUID) -> ResponseJob:
         media = cast(File_on_db, self.media)
         model = cast(Model_on_db, self.model)
         prompt = cast(Prompt_on_db, self.prompt)
 
         job = await self.jobondb.get_job_entry(id)
-        return JobIO(
+        return ResponseJob(
             id=job.id,
             user_id=self.user.id,
             model_id=model.id,
@@ -206,7 +202,7 @@ class JobHandler:
 
 
 
-    async def JobReadAll(self) -> List[JobIO]:
+    async def JobReadAll(self) -> List[ResponseJob]:
         media = cast(File_on_db, self.media)
         model = cast(Model_on_db, self.model)
         prompt = cast(Prompt_on_db, self.prompt)
@@ -214,7 +210,7 @@ class JobHandler:
         mediaqueries = await self.jobondb.get_all_job_entries()
         jobs = []
         for i in mediaqueries:
-            jobs.append(JobIO(
+            jobs.append(ResponseJob(
                 id=i.id,
                 user_id=self.user.id,
                 model_id=model.id,

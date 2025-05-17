@@ -14,7 +14,6 @@ from shared.models.user import User_on_db, UserTier_on_db
 from shared.models.resources import Model_on_db, APIKey_on_db
 
 ROOTPASSWD = os.getenv("ROOTPASSWD", "A very safe root password")
-APIKEYGEMINI = os.getenv("APIKEYGEMINI", "")
 
 class LLMProviders(str, Enum):
     OPENAI = "OpenAI"

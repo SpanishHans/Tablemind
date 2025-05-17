@@ -7,7 +7,7 @@ from shared.auth.auth import CurrentUser
 from shared.utils.text import TextUtils
 
 from shared.ops.prompt import PromptDb
-from shared.schemas.prompt import PromptIO
+from shared.schemas.prompt import ResponsePrompt
 from shared.schemas.generic import ResponseMessage
 
 class PromptHandler:
@@ -19,60 +19,52 @@ class PromptHandler:
 
 
 
-    async def PromptCreate(self, prompt_str: str) -> PromptIO:
+    async def PromptCreate(self, prompt_str: str) -> ResponsePrompt:
         prompt_text = self.textutils.sanitize_text(prompt_str)
         hash = self.textutils.generate_text_hash(prompt_str)
 
         dup = await self.promptondb.check_prompt_duplicity(hash)
         if dup:
             new_prompt = await self.promptondb.update_prompt_entry(id= dup.id, prompt_text=prompt_text, hash=hash)
-            return PromptIO(
-                id=new_prompt.id,
-                prompt_text=new_prompt.prompt_text)
+            return ResponsePrompt(
+                prompt_id=new_prompt.id)
 
         prompt = await self.promptondb.create_prompt_entry(prompt_text, hash)
-        return PromptIO(
-            id=prompt.id,
-            prompt_text=prompt.prompt_text)
+        return ResponsePrompt(
+            prompt_id=prompt.id)
 
 
 
-    async def PromptUpdate(self, id: uuid.UUID, prompt_str: str) -> PromptIO:
+    async def PromptUpdate(self, id: uuid.UUID, prompt_str: str) -> ResponsePrompt:
         prompt_text = self.textutils.sanitize_text(prompt_str)
         hash = self.textutils.generate_text_hash(prompt_str)
 
         dup = await self.promptondb.check_prompt_duplicity(hash)
         if dup:
             new_prompt = await self.promptondb.update_prompt_entry(id= dup.id, prompt_text=prompt_text, hash=hash)
-            return PromptIO(
-                id=new_prompt.id,
-                prompt_text=new_prompt.prompt_text)
+            return ResponsePrompt(
+                prompt_id=new_prompt.id)
 
         prompt = await self.promptondb.update_prompt_entry(id, prompt_text, hash)
-        return PromptIO(
-            id=prompt.id,
-            prompt_text=prompt.prompt_text)
+        return ResponsePrompt(
+            prompt_id=prompt.id)
 
 
 
-    async def PromptRead(self, id: uuid.UUID) -> PromptIO:
+    async def PromptRead(self, id: uuid.UUID) -> ResponsePrompt:
 
         prompt = await self.promptondb.get_prompt_entry(id)
-        return PromptIO(
-            id=prompt.id,
-            prompt_text=prompt.prompt_text)
+        return ResponsePrompt(
+            prompt_id=prompt.id)
 
 
 
-    async def PromptReadAll(self) -> List[PromptIO]:
+    async def PromptReadAll(self) -> List[ResponsePrompt]:
 
         mediaqueries = await self.promptondb.get_all_prompt_entries()
         prompts = []
         for i in mediaqueries:
-            prompts.append(PromptIO(
-                id=i.id,
-                prompt_text=i.prompt_text,
-            ))
+            prompts.append(ResponsePrompt(prompt_id=i.id))
         return prompts
 
 
