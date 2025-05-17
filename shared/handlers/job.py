@@ -112,7 +112,7 @@ class JobHandler:
         self.hash = self.textutils.generate_text_hash(f"{self.prompt.id}{self.media.id}{self.model.id}")
 
         return ResponseJob(
-            id=None,
+            job_id=None,
             filename=self.media.filename,
             modelname=self.model.name,
             verbosity=verbosity,
@@ -166,7 +166,7 @@ class JobHandler:
                         logger.error(f"Error storing chunks for job {dup.id}: {str(chunk_error)}")
 
                     return ResponseJob(
-                        id=dup.id,
+                        job_id=dup.id,
                         filename=self.media.filename,
                         modelname=self.model.name,
                         verbosity=self.verbosity,
@@ -211,7 +211,7 @@ class JobHandler:
                     logger.error(f"Error storing chunks for job {job.id}: {str(chunk_error)}")
 
                 return ResponseJob(
-                    id=job.id,
+                    job_id=job.id,
                     filename=self.media.filename,
                     modelname=self.model.name,
                     verbosity=self.verbosity,
@@ -259,7 +259,7 @@ class JobHandler:
                 )
 
                 return ResponseJob(
-                    id=updated_job.id,
+                    job_id=updated_job.id,
                     filename=media.filename,
                     modelname=model.name,
                     verbosity=0.0,  # We don't store this in the job record
@@ -296,11 +296,11 @@ class JobHandler:
                 _ = await self.promptondb.get_prompt_entry(job.prompt_id)
 
                 return ResponseJob(
-                    id=job.id,
+                    job_id=job.id,
                     filename=media.filename,
                     modelname=model.name,
-                    verbosity=0.0,  # We don't store this in the job record
-                    granularity="",  # We don't store this in the job record
+                    verbosity=0.2,  # Default value since we don't store this in the job record
+                    granularity="PER_ROW",  # Default value since we don't store this in the job record
                     estimated_input_tokens=job.input_token_count,
                     estimated_output_tokens=job.output_token_count,
                     cost_per_1m_input=model.cost_per_1m_input,
@@ -337,7 +337,7 @@ class JobHandler:
                     _ = await self.promptondb.get_prompt_entry(job.prompt_id)
 
                     jobs.append(ResponseJob(
-                        id=job.id,
+                        job_id=job.id,
                         filename=media.filename,
                         modelname=model.name,
                         verbosity=0.0,  # We don't store this in the job record 

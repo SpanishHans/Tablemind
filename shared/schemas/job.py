@@ -7,7 +7,7 @@ from datetime import datetime
 class ResponseJob(BaseModel):
     filename: str = Field(..., examples=['filename.xlsx'])
     modelname: str = Field(..., examples=['model_name'])
-    verbosity: float = Field(..., ge=0.2, le=2, description='Verbosidad de output: Conciso o Detallado')
+    verbosity: float = Field(..., ge=0.1, le=2, description='Verbosidad de output: Conciso o Detallado')
     granularity: str = Field(..., description='Tipo de contexto: fila completa o columna específica')
     estimated_input_tokens: int = Field(..., description='Cantidad estimada de tokens de entrada')
     estimated_output_tokens: int = Field(..., description='Cantidad estimada de tokens de salida')
@@ -17,11 +17,11 @@ class ResponseJob(BaseModel):
     estimated_cost: int = Field(..., description='Costo estimado')
     task_id: Optional[str] = Field(None, description='ID de la tarea en Celery')
     task_status: Optional[str] = Field(None, description='Estado de la tarea')
-    id: Optional[uuid.UUID] = Field(None, description='UUID del trabajo')
+    job_id: Optional[uuid.UUID] = Field(None, description='UUID del trabajo')
     job_status: Optional[str] = Field(None, description='Estado actual del trabajo')
     created_at: Optional[datetime] = Field(None, description='Fecha de creación')
     completed_at: Optional[datetime] = Field(None, description='Fecha de finalización')
-    
+
     def dict(self, *args, **kwargs):
         """Override dict method to include all fields"""
         try:
@@ -35,7 +35,7 @@ class ResponseJob(BaseModel):
                     # Handle UUID serialization
                     if isinstance(value, uuid.UUID):
                         value = str(value)
-                    # Handle datetime serialization    
+                    # Handle datetime serialization
                     elif isinstance(value, datetime):
                         value = value.isoformat()
                     result[field_name] = value
@@ -63,7 +63,7 @@ class FormParams(BaseModel):
     focus_column: Optional[str] = Field(None, description='Columna para modo celda.')
 
     @classmethod
-    def as_form(cls, 
+    def as_form(cls,
                 prompt_id: uuid.UUID = Form(...),
                 media_id: uuid.UUID = Form(...),
                 model_id: uuid.UUID = Form(...),

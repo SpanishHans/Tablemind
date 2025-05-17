@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional, List, Tuple
 import pandas as pd
-import tiktoken
+import json
 from enum import Enum
 
 from google import genai
@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from shared.models.resources import MediaType
 from shared.models.job import GranularityLevel, JobStatus, Chunk_on_db
 from shared.models.resources import Model_on_db
+from shared.utils.text import TextUtils
 
 
 
@@ -194,15 +195,20 @@ class ChunkUtils:
         chunks = self.split(df, chunk_size)
 
         for i, df_chunk in enumerate(chunks):
+            formatted_data = self.format(df_chunk, granularity, focus_column)
+            chunk_data_str = json.dumps(formatted_data, sort_keys=True)
+            chunk_hash = TextUtils().generate_text_hash(f"{job_id}_{i}_{chunk_data_str}")
+            
             chunk = Chunk_on_db(
                 job_id=self.job_id,
                 user_id=user_id,
                 chunk_index=i,
                 total_rows=len(df_chunk),
                 row_range=f"{df_chunk.index[0]}-{df_chunk.index[-1]}",
-                source_data=self.format(df_chunk, granularity, focus_column),
+                source_data=formatted_data,
                 granularity=granularity,
                 status=JobStatus.QUEUED,
+                hash=chunk_hash,
             )
             self.db.add(chunk)
         await self.db.commit()
