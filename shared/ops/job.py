@@ -47,6 +47,14 @@ class JobDb:
         """Create an entry in the database for the job"""
         job = Job_on_db(
             user_id=self.user.id,
+            model_id=model_id,
+            prompt_id=prompt_id,
+            media_id=media_id,
+            job_status=job_status,
+            cost_estimate_usd=cost_estimate_usd,
+            input_token_count=input_token_count,
+            output_token_count=output_token_count,
+            hash=hash,
         )
         try:
             self.db.add(job)

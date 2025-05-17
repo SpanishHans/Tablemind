@@ -1,2 +1,10 @@
 celery[redis]
 redis
+google-genai
+SQLAlchemy
+asyncpg
+pandas
+openpyxl
+tiktoken
+aiofiles
+cryptography

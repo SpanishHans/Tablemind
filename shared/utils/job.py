@@ -4,7 +4,7 @@ import pandas as pd
 import tiktoken
 from enum import Enum
 
-import google.generativeai as genai
+from google import genai
 
 from fastapi import HTTPException
 
@@ -59,9 +59,6 @@ class JobUtils:
         model_encoder: str,
     ):
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_encoder)
-
             contents_to_send = [
                 {
                     "role": "user",
@@ -69,25 +66,29 @@ class JobUtils:
                 }
             ]
 
-            token_response = model.count_tokens(contents=contents_to_send)
-            return token_response.total_tokens
+            client = genai.Client(api_key=api_key)
+            response = client.models.count_tokens(
+                model=model_encoder, 
+                contents=contents_to_send
+            )
+            return response.total_tokens
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens: {str(e)}")
 
 
     
-    def provider_picker(self, model: Model_on_db, content: str, api_keys:str) -> int:
+    def provider_picker(self, model: Model_on_db, content: str, api_key:str) -> int:
         total_tokens = 0
         if model.provider == "Google":
             try:
-                total_tokens += self.estimate_google(data=content, api_key=api_keys , model_encoder=model.encoder)
+                total_tokens += self.estimate_google(data=content, api_key=api_key , model_encoder=model.encoder)
                 return total_tokens
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens con Google: {str(e)}")
         elif model.provider == "OpenAI":
             try:
-                total_tokens += self.estimate_google(data=content, api_key=api_keys , model_encoder=model.encoder)
+                total_tokens += self.estimate_google(data=content, api_key=api_key , model_encoder=model.encoder)
                 return total_tokens
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens con Anthropic: {str(e)}")
@@ -101,24 +102,28 @@ class JobUtils:
             self,
             df: pd.DataFrame,
             model: Model_on_db,
-            api_keys,
+            api_key,
             granularity: GranularityLevel = GranularityLevel.PER_ROW,
-            focus_column: Optional[str] = None
+            focus_column: Optional[str] = None,
+            prompt_text: Optional[str] = None
         ) -> int:
-        # enc = tiktoken.encoding_for_model(model_encoder)
         total_tokens = 0
 
         if granularity == GranularityLevel.PER_ROW:
             for _, row in df.iterrows():
                 content = str(row.to_dict())
-                total_tokens = self.provider_picker(model, content, api_keys)
+                if prompt_text:
+                    content = f"{prompt_text}\n{content}"
+                total_tokens = self.provider_picker(model, content, api_key)
         elif granularity == GranularityLevel.PER_CELL:
             if focus_column is None or focus_column not in df.columns:
                 raise ValueError("focus_column must be provided and valid for PER_CELL granularity")
 
             for _, row in df.iterrows():
                 content = str(row.to_dict())
-                total_tokens = self.provider_picker(model, content, api_keys)
+                if prompt_text:
+                    content = f"{prompt_text}\n{content}"
+                total_tokens = self.provider_picker(model, content, api_key)
 
         return total_tokens
 
@@ -177,9 +182,11 @@ class ChunkUtils:
     async def store(
             self,
             job_id: uuid.UUID,
+            user_id: uuid.UUID,
             granularity: GranularityLevel,
             df:pd.DataFrame,
-            chunk_size:int,focus_column:str
+            chunk_size:int,
+            focus_column:str
         ) -> None:
 
         self.job_id = job_id
@@ -189,6 +196,7 @@ class ChunkUtils:
         for i, df_chunk in enumerate(chunks):
             chunk = Chunk_on_db(
                 job_id=self.job_id,
+                user_id=user_id,
                 chunk_index=i,
                 total_rows=len(df_chunk),
                 row_range=f"{df_chunk.index[0]}-{df_chunk.index[-1]}",

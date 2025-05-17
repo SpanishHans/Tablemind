@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from fastapi import Form, Query
 import uuid
+from datetime import datetime
 
 class ResponseJob(BaseModel):
     filename: str = Field(..., examples=['filename.xlsx'])
@@ -13,8 +14,46 @@ class ResponseJob(BaseModel):
     cost_per_1m_input: int = Field(..., description='Costo por millón de tokens de entrada')
     cost_per_1m_output: int = Field(..., description='Costo por millón de tokens de salida')
     handling_fee: int = Field(..., description='Tarifa de manejo')
-    estimated_cost: float = Field(..., description='Costo estimado')
+    estimated_cost: int = Field(..., description='Costo estimado')
+    task_id: Optional[str] = Field(None, description='ID de la tarea en Celery')
+    task_status: Optional[str] = Field(None, description='Estado de la tarea')
+    id: Optional[uuid.UUID] = Field(None, description='UUID del trabajo')
+    job_status: Optional[str] = Field(None, description='Estado actual del trabajo')
+    created_at: Optional[datetime] = Field(None, description='Fecha de creación')
+    completed_at: Optional[datetime] = Field(None, description='Fecha de finalización')
+    
+    def dict(self, *args, **kwargs):
+        """Override dict method to include all fields"""
+        try:
+            return super().dict(*args, **kwargs)
+        except Exception as e:
+            # Create a simplified dictionary with all fields
+            result = {}
+            for field_name in self.__fields__:
+                try:
+                    value = getattr(self, field_name)
+                    # Handle UUID serialization
+                    if isinstance(value, uuid.UUID):
+                        value = str(value)
+                    # Handle datetime serialization    
+                    elif isinstance(value, datetime):
+                        value = value.isoformat()
+                    result[field_name] = value
+                except Exception:
+                    result[field_name] = None
+            return result
 
+
+class ResponseJobStatus(BaseModel):
+    job_id: str = Field(..., description='UUID del trabajo')
+    status: str = Field(..., description='Estado actual del trabajo (QUEUED, RUNNING, FINISHED, etc.)')
+    task_status: str = Field(..., description='Estado de la tarea en Celery')
+    chunks_total: int = Field(..., description='Número total de chunks en el trabajo')
+    chunks_completed: int = Field(..., description='Número de chunks completados')
+    chunks_in_progress: int = Field(..., description='Número de chunks en proceso')
+    chunks_failed: int = Field(..., description='Número de chunks fallidos')
+    created_at: datetime = Field(..., description='Fecha de creación del trabajo')
+    completed_at: Optional[datetime] = Field(None, description='Fecha de finalización del trabajo')
 
 
 class FormParams(BaseModel):

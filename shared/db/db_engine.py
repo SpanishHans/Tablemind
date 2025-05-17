@@ -11,8 +11,6 @@ HOST_DB = os.getenv("HOST_DB", "db")
 
 DATABASE = f"postgresql+asyncpg://{USER_DB}:{PASS_DB}@{HOST_DB}:5432/{NAME_DB}"
 
-
-
 engine = create_async_engine(DATABASE, echo=True)
 
 SessionLocal = async_sessionmaker(

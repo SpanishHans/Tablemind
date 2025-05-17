@@ -11,7 +11,7 @@ from shared.schemas.auth import ResponseRegister, ResponseLogin, ResponseReauth,
 
 router = APIRouter(tags=["Autenticación"], prefix='/auth')
 
-@router.post("/registro",response_model=ResponseRegister)
+@router.post("/register",response_model=ResponseRegister)
 async def register(
         username: str = Form(..., description="Nombre de usuario"),
         password: SecretStr = Form(..., description="Contraseña del usuario"),

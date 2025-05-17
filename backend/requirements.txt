@@ -14,4 +14,4 @@ aiofiles
 pandas
 openpyxl
 tiktoken
-google-generativeai
+google-genai
