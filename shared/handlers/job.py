@@ -32,7 +32,6 @@ class JobHandler:
         self,
         db: AsyncSession,
         current_user: CurrentUser,
-
     ):
         self.db = db
         self.user = current_user
@@ -78,6 +77,9 @@ class JobHandler:
 
         if focus_column and focus_column not in df.columns:
             raise HTTPException(status_code=400, detail=f"No se encontró '{focus_column}' en df.")
+        
+        if not model.is_active:
+            raise HTTPException(status_code=403, detail=f"El modelo '{model.name}' no está activo.")
             
         random_api_key_obj = random.choice(model.api_keys)
 

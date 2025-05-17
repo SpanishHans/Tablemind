@@ -18,7 +18,7 @@ class MediaDb:
 
 
 
-    async def check_duplicity(self, owner:uuid.UUID, filehash: str) -> Optional[File_on_db]:
+    async def check_duplicity(self, owner:uuid.UUID, filehash: str) -> File_on_db:
         """Generate a hash for the file and check if it already exists in the database"""
         try:
             result = await self.db.execute(
@@ -27,7 +27,10 @@ class MediaDb:
                     File_on_db.user_id == owner
                 )
             )
-            return result.scalar_one_or_none()
+            media = result.scalar_one_or_none()
+            if not media:
+                raise HTTPException(status_code=400, detail="El archivo no existe.")
+            return media
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -36,7 +39,7 @@ class MediaDb:
 
 
 
-    async def get_media_entry(self, id: uuid.UUID, owner:uuid.UUID) -> Optional[File_on_db]:
+    async def get_media_entry(self, id: uuid.UUID, owner:uuid.UUID) -> File_on_db:
         """Create an entry in the database for the uploaded file"""
         try:
             result = await self.db.execute(
@@ -46,7 +49,10 @@ class MediaDb:
                     File_on_db.user_id == owner,
                 )
             )
-            return result.scalar_one_or_none()
+            media = result.scalar_one_or_none()
+            if not media:
+                raise HTTPException(status_code=404, detail="El archivo no existe.")
+            return media
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -63,10 +69,10 @@ class MediaDb:
                     File_on_db.user_id == owner,
                 )
             )
-            existing_media = result.scalars().all()
-            if not existing_media:
-                raise HTTPException(status_code=400, detail="El archivo no existe.")
-            return existing_media
+            media = result.scalars().all()
+            if not media:
+                raise HTTPException(status_code=404, detail="El archivo no existe.")
+            return media
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -75,7 +81,14 @@ class MediaDb:
 
 
 
-    async def create_media_entry(self, owner:uuid.UUID, filetype:MediaType, filename:str, filepath: str, filehash: str) -> File_on_db:
+    async def create_media_entry(
+            self,
+            owner:uuid.UUID,
+            filetype:MediaType,
+            filename:str,
+            filepath: str,
+            filehash: str
+        ) -> File_on_db:
         """Create an entry in the database for the uploaded file"""
         media = File_on_db(
             user_id=owner,
@@ -116,7 +129,7 @@ class MediaDb:
             )
             media = result.scalar_one_or_none()
             if not media:
-                raise HTTPException(status_code=400, detail="El archivo no existe.")
+                raise HTTPException(status_code=404, detail="El archivo no existe.")
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -155,7 +168,7 @@ class MediaDb:
             )
             media = result.scalar_one_or_none()
             if not media:
-                raise HTTPException(status_code=400, detail="El archivo no existe.")
+                raise HTTPException(status_code=404, detail="El archivo no existe.")
         except Exception as e:
             raise HTTPException(
                 status_code=500,

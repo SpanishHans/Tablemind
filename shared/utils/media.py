@@ -103,11 +103,26 @@ class MediaUtils:
     
     
     
-    def validate_file_type(self, allowed_types: List[str]):
+    def validate_file(self, allowed_types: List[str]):
         async def validator(file: UploadFile = File(...)) -> UploadFile:
+            if not file:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se ha proporcionado ningún archivo."
+                )
+            if not file.filename:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El archivo no tiene nombre."
+                )
+            if not file.content_type:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se pudo determinar el tipo de contenido del archivo."
+                )
             if file.content_type not in allowed_types:
                 raise HTTPException(
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                     detail={
                         "error": "Tipo de archivo no permitido.",
                         "content_type": file.content_type,
@@ -116,3 +131,4 @@ class MediaUtils:
                 )
             return file
         return validator
+

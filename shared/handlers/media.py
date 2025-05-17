@@ -2,7 +2,7 @@ import uuid
 import os
 from typing import List
 
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile
 from fastapi.responses import FileResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,9 +29,8 @@ class MediaHandler:
 
 
     async def FileCreate(self, file: UploadFile) -> ResponseMedia:
-        if not file or not file.filename or not file.content_type:
-                raise HTTPException(status_code=400, detail="Archivo inválido o incompleto.")
-        
+        assert file.filename is not None, "File must have a filename"
+        assert file.content_type is not None, "File must have a content type"
         filename = self.mediautils.sanitize_filename(file.filename)
         filetype = self.mediautils.check_file_type(file.content_type)
         filehash, filesize = self.mediautils.generate_file_hash(file)
@@ -61,11 +60,8 @@ class MediaHandler:
     async def FileRename(self, id: uuid.UUID, new_filename: str) -> ResponseMedia:
         filename = self.mediautils.sanitize_filename(new_filename)
         media = await self.mediaondb.get_media_entry(id=id, owner=self.user.id)
-        if not media:
-            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
         
         if media.filename == filename:
-            # No need to rename if the filename is the same
             return ResponseMedia(media_id=media.id)
 
         await self.mediaondisk.rename_file(
@@ -85,8 +81,6 @@ class MediaHandler:
 
     async def FileRead(self, id: uuid.UUID) -> FileResponse:
         media = await self.mediaondb.get_media_entry(id=id, owner=self.user.id)
-        if not media:
-            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
         return FileResponse(
             path=f'{media.filepath}/{media.filename}',
             media_type=media.media_type,
@@ -107,8 +101,6 @@ class MediaHandler:
 
     async def FileDelete(self, id: uuid.UUID) -> ResponseMessage:
         media = await self.mediaondb.get_media_entry(id=id, owner=self.user.id)
-        if not media:
-            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
         filepath = media.filepath
         filename = media.filename
 

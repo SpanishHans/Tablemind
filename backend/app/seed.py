@@ -120,7 +120,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "Meta LLaMA 2 13B",
@@ -133,7 +133,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "Cohere Command R+",
@@ -146,7 +146,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "Anthropic Claude 3",
@@ -159,7 +159,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "AI21 Jurassic-1 Jumbo",
@@ -172,7 +172,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "Mistral 7B",
@@ -185,7 +185,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "EleutherAI GPT-NeoX 20B",
@@ -198,7 +198,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "Hugging Face Bloom-176B",
@@ -211,7 +211,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "NVIDIA Megatron-Turing NLG 530B",
@@ -224,7 +224,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             },
             {
                 "name": "Amazon Bedrock Titan",
@@ -237,7 +237,7 @@ class SeedDb:
                 "cost_per_1m_output": 60,  # 0.60 dollars => 60 cents
                 "max_input_tokens": 1_048_576,
                 "max_output_tokens": 65_535,
-                "is_active": True
+                "is_active": False
             }
         ]
 
