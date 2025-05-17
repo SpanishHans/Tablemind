@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
 from seed import SeedDb
 from shared.db.db_engine import init_db, SessionLocal
@@ -15,6 +16,22 @@ app = FastAPI(
     title="Servicio de Autenticación",
     description="API para gestión de usuarios y autenticación",
     version=VERSION
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://frontend:3000",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "*"
+    ],  # Frontend container and local dev
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
 )
 
 @app.on_event("startup")

@@ -20,7 +20,11 @@ export default function Login() {
       formData.append("username", username);
       formData.append("password", password);
 
-      const res = await fetch("http://backend:10352/auth/login", {
+      // Always use the API proxy configured in next.config.js
+      // This ensures the browser never tries to directly access the backend container
+      const apiUrl = "/api/auth/login";
+
+      const res = await fetch(apiUrl, {
         method: "POST",
         body: formData,
         credentials: "include"
@@ -33,7 +37,8 @@ export default function Login() {
         localStorage.setItem("access_token", data.access_token);
         window.location.href = "/";
       }
-    } catch {
+    } catch (error) {
+      console.error("Login error:", error);
       setErrorMsg("Error de conexión con el servidor.");
     }
     setLoading(false);
