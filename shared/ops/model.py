@@ -4,9 +4,10 @@ from typing import Sequence
 from fastapi import HTTPException
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.models.resources import Model_on_db
+from shared.models.resources import Model_on_db, APIKey_on_db
 
 
 class ModelDb:
@@ -19,7 +20,9 @@ class ModelDb:
         """Get an entry in the database for the model"""
         try:
             result = await self.db.execute(
-                select(Model_on_db).where(
+                select(Model_on_db)
+                .options(selectinload(Model_on_db.api_keys))
+                .where(
                     Model_on_db.id == id,
                 )
             )
@@ -39,8 +42,8 @@ class ModelDb:
         """Get all promot entries in the database for the user"""
         try:
             result = await self.db.execute(
-                select(Model_on_db).where(
-                )
+                select(Model_on_db)
+                .where()
             )
             existing_model = result.scalars().all()
             if not existing_model:

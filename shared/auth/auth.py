@@ -10,7 +10,7 @@ class CurrentUser(BaseModel):
     username: str
 
 KEY_TOKEN_HASHER = os.getenv("KEY_TOKEN_HASHER", "supersecret")  # Same as in auth container
-HASHER_ALGORITHM = os.getenv("ALGORITHM", "HS256")
+HASHER_ALGORITHM = os.getenv("HASHER_ALGORITHM", "HS256")
 
 def decode_and_validate_token(token: str, expected_type: str = "access"):
     try:

@@ -4,8 +4,8 @@ from passlib.context import CryptContext
 from jose import jwt
 import uuid
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
+KEY_TOKEN_HASHER = os.getenv("KEY_TOKEN_HASHER", "oneverylongandsupersecretpassword")
+HASHER_ALGORITHM = os.getenv("HASHER_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1500"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -52,7 +52,7 @@ class TokenService:
             "token_type": "refresh"
         }
 
-        access_token = jwt.encode(access_payload, SECRET_KEY, algorithm=ALGORITHM)
-        refresh_token = jwt.encode(refresh_payload, SECRET_KEY, algorithm=ALGORITHM)
+        access_token = jwt.encode(access_payload, KEY_TOKEN_HASHER, algorithm=HASHER_ALGORITHM)
+        refresh_token = jwt.encode(refresh_payload, KEY_TOKEN_HASHER, algorithm=HASHER_ALGORITHM)
 
         return access_token, refresh_token

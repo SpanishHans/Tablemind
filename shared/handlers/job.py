@@ -59,7 +59,7 @@ class JobHandler:
             verbosity: float,
             chunk_size: int,
             focus_column: Optional[str]
-        ) -> dict:
+        ) -> ResponseJob:
         prompt = await self.promptondb.get_prompt_entry(prompt_id)
         media = await self.mediaondb.get_media_entry(media_id, self.user.id)
         model = await self.modelondb.get_model_entry(model_id)
@@ -97,14 +97,18 @@ class JobHandler:
                         ((self.output_tokens / 1_000_000) * model.cost_per_1m_output)) + \
                         (price)
 
-        return {
-            "estimated_input_tokens": self.input_tokens,
-            "estimated_output_tokens": self.output_tokens,
-            "cost_per_1m_input": model.cost_per_1m_input,
-            "cost_per_1m_output": model.cost_per_1m_output,
-            "handling_fee": price,
-            "estimated_cost": self.cost_usd
-        }
+        return ResponseJob(
+            filename=media.filename,
+            modelname=model.name,
+            verbosity=verbosity,
+            granularity=granularity,
+            estimated_input_tokens=self.input_tokens,
+            estimated_output_tokens=self.output_tokens,
+            cost_per_1m_input=model.cost_per_1m_input,
+            cost_per_1m_output=model.cost_per_1m_output,
+            handling_fee=price,
+            estimated_cost=self.cost_usd
+        )
 
 
 

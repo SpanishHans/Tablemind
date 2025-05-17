@@ -40,7 +40,8 @@ class MediaDb:
         """Create an entry in the database for the uploaded file"""
         try:
             result = await self.db.execute(
-                select(File_on_db).where(
+                select(File_on_db)
+                .where(
                     File_on_db.id == id,
                     File_on_db.user_id == owner,
                 )

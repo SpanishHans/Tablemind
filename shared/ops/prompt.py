@@ -38,7 +38,8 @@ class PromptDb:
         """Get an entry in the database for the prompt"""
         try:
             result = await self.db.execute(
-                select(Prompt_on_db).where(
+                select(Prompt_on_db)
+                .where(
                     Prompt_on_db.id == id,
                     Prompt_on_db.user_id == self.user.id
                 )
