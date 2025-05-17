@@ -60,7 +60,7 @@ async def upload_tabular(
 
 @router.post("/upload/media", response_model=ResponseMedia)
 async def upload_media(
-    file: UploadFile = Depends(MediaUtils().validate_file_type(allowed_types=[
+    file: UploadFile = Depends(MediaUtils().validate_file(allowed_types=[
         MediaType.IMAGE_PNG,
         MediaType.IMAGE_JPEG,
         MediaType.VIDEO_MP4
