@@ -1,32 +1,26 @@
 # Stage 1: Build the Next.js app
 FROM node:20 AS builder
 
-WORKDIR /tablemind
-
-# Install pnpm manually
+WORKDIR /app
 RUN npm install -g pnpm
 
-# Copy dependencies and install only production dependencies
-COPY ./tablemind/pnpm-lock.yaml ./tablemind/package.json ./
-RUN pnpm install --frozen-lockfile --prod
+COPY ./frontend/app/pnpm-lock.yaml ./frontend/app/package.json ./
+RUN pnpm install --frozen-lockfile
 
-RUN pnpm install --frozen-lockfile --prod
-RUN pnpm add tailwindcss postcss autoprefixer @tailwindcss/postcss
-
-# Copy the rest of the app and build
-COPY ./tablemind .
+COPY ./frontend/app ./
 RUN pnpm build
 
 # Stage 2: Run the app
 FROM node:20 AS runner
 
-WORKDIR /tablemind
+WORKDIR /app
 
 # Copy the standalone output
-COPY --from=builder /tablemind/.next/standalone ./
-COPY --from=builder /tablemind/public ./public
-COPY --from=builder /tablemind/.next/static ./.next/static
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile --prod
 
-EXPOSE 3000
+EXPOSE 5173
 
-CMD ["node", "server.js"]
+CMD ["node", "./build/index.js"]

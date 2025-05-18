@@ -1,0 +1,104 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile.dev
+      args:
+        VERSION: ${VERSION}
+    env_file: ./.env
+    container_name: tablemind_front
+    ports:
+      - "${PORT_FRNT}:5173"
+    volumes:
+      - ./frontend/app:/app
+    networks:
+      - app_net
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      args:
+        VERSION: ${VERSION}
+    env_file: ./.env
+    container_name: tablemind_back
+    ports:
+      - "${PORT_BACK}:8000"
+    volumes:
+      - uploads:${BASE_UPLOAD_DIR}
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+    networks:
+      - app_net
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+      args:
+        VERSION: ${VERSION}
+    container_name: tablemind_worker
+    depends_on:
+      - redis
+      - backend
+    env_file: ./.env
+    networks:
+      - app_net
+
+  redis:
+    image: redis:latest
+    container_name: tablemind_redis
+    networks:
+      - app_net
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:latest
+    env_file: ./.env
+    container_name: tablemind_db
+    networks:
+      - app_net
+    environment:
+      POSTGRES_USER: ${USER_DB}
+      POSTGRES_PASSWORD: ${PASS_DB}
+      POSTGRES_DB: ${NAME_DB}
+    volumes:
+      - postgresql:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB} -d ${NAME_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    env_file: ./.env
+    container_name: tablemind_pgadmin
+    networks:
+      - app_net
+    ports:
+      - "${PORT_PGAD}:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${MAIL_DB}
+      PGADMIN_DEFAULT_PASSWORD: ${PASS_DB}
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+
+networks:
+  app_net:
+    driver: bridge
+    name: tablemind_network
+
+volumes:
+  uploads:
+    name: tablemind_vol_uploads
+  frontend:
+    name: tablemind_vol_frontend
+  postgresql:
+    name: tablemind_vol_pg
+  pgadmin:
+    name: tablemind_vol_pgadmin

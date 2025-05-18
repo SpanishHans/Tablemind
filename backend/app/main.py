@@ -23,11 +23,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://frontend:3000",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        # "*"
     ],  # Frontend container and local dev
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],

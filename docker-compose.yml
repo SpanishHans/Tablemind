@@ -1,15 +1,14 @@
 services:
   frontend:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: ./frontend/Dockerfile
       args:
         VERSION: ${VERSION}
     env_file: ./.env
     container_name: tablemind_front
     ports:
       - "${PORT_FRNT}:3000"
-    depends_on:
-      - backend
     networks:
       - app_net
 
@@ -72,7 +71,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-  
+
   pgadmin:
     image: dpage/pgadmin4:latest
     env_file: ./.env
