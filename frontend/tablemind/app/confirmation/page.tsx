@@ -397,7 +397,7 @@ export default function ConfirmationPage() {
   };
   
   // Format currency for display
-  const formatCurrency = (value) => {
+  const formatCurrency = (value: number) => {
     // Return value in US cents
     return `${value.toFixed(2)}¢`;
   };
