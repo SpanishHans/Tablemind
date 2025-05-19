@@ -170,10 +170,13 @@ export default function LoadPage() {
       // Verificar diferentes propiedades donde podría venir el ID
       if (data.id) {
         localStorage.setItem("currentMediaId", data.id);
+        localStorage.setItem("currentFileName", file.name);
       } else if (data.media_id) {
         localStorage.setItem("currentMediaId", data.media_id);
+        localStorage.setItem("currentFileName", file.name);
       } else if (data._id) {
         localStorage.setItem("currentMediaId", data._id);
+        localStorage.setItem("currentFileName", file.name);
       } else {
         // Simular éxito para prueba mientras se arregla el backend
         console.warn("No se encontró ID en la respuesta, usando ID temporal");

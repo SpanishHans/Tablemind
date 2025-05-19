@@ -28,7 +28,7 @@ export default function ModelSelectPage() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [detailLevel, setDetailLevel] = useState<number>(1);
   const [operationMode, setOperationMode] = useState<string>("PER_ROW");
-  const [maxRows, setMaxRows] = useState<number>(100);
+  const [maxRows, setMaxRows] = useState<number>(10);
   
   // UI states
   const [isLoading, setIsLoading] = useState(true);
@@ -111,17 +111,50 @@ export default function ModelSelectPage() {
   const handleSubmit = () => {
     if (!selectedModel || isSubmitting) return;
     
+    // Get required data first to check validity
+    const promptId = localStorage.getItem("currentPromptId");
+    const mediaId = localStorage.getItem("currentMediaId");
+    
+    // Log existing localStorage for debugging
+    console.log("Storage check before submit:", {
+      promptId,
+      mediaId, 
+      modelId: selectedModel,
+      fileName: localStorage.getItem("currentFileName")
+    });
+    
+    // Check if media_id exists
+    if (!mediaId || mediaId === "undefined" || mediaId === "null") {
+      setErrorMsg("File information is missing. Please go back and upload a file first.");
+      return;
+    }
+    
+    // Check if prompt_id exists
+    if (!promptId || promptId === "undefined" || promptId === "null") {
+      setErrorMsg("Prompt information is missing. Please go back and select a prompt first.");
+      return;
+    }
+    
     // Start loading state
     setIsSubmitting(true);
     setErrorMsg("");
     setLoadingStage("Starting estimation...");
     setLoadingProgress(10);
-    
+  
     // Save parameters to localStorage
     localStorage.setItem("currentModelId", selectedModel);
     localStorage.setItem("detailLevel", detailLevel.toString());
     localStorage.setItem("operationMode", operationMode);
     localStorage.setItem("maxRows", maxRows.toString());
+  
+    // Ensure we're using the actual filename if it's missing
+    const fileName = localStorage.getItem("currentFileName");
+    if (!fileName || fileName === "null") {
+      const mediaId = localStorage.getItem("currentMediaId");
+      if (mediaId) {
+        localStorage.setItem("currentFileName", "uploaded_file.xlsx");
+      }
+    }
     
     // Create a simulated loading animation
     const progressInterval = setInterval(() => {
@@ -149,51 +182,99 @@ export default function ModelSelectPage() {
       }
     }, 1000);
     
-    // Simulate an API response after delay
-    setTimeout(() => {
-      // Clear intervals
-      clearInterval(progressInterval);
-      clearInterval(statusInterval);
-      
-      // Create fake estimate data
-      const estimateData = {
-        filename: "example_file.xlsx",
-        modelname: "GPT-4",
-        verbosity: detailLevel,
-        granularity: operationMode,
-        estimated_input_tokens: 12500,
-        estimated_output_tokens: 6800,
-        cost_per_1m_input: 10,
-        cost_per_1m_output: 30,
-        handling_fee: 5,
-        estimated_cost: 35,
-        job_id: "12345-mock-job-id",
-        job_status: "pending",
-        created_at: new Date().toISOString(),
-        completed_at: null
-      };
-      
-      // Save mock data to localStorage
-      localStorage.setItem("jobEstimateData", JSON.stringify(estimateData));
-      
-      // Complete the loading
-      setLoadingProgress(100);
-      setLoadingStage("Completed! Redirecting...");
-      
-      // Navigate to confirmation page
-      setTimeout(() => {
-        router.push("/confirmation");
-      }, 800);
-    }, 3000);
+    // Call the actual API to get estimation
+    const callEstimateApi = async () => {
+      try {
+        // Create FormData for the request
+        const formData = new FormData();
+        formData.append("prompt_id", promptId);
+        formData.append("media_id", mediaId);
+        formData.append("model_id", selectedModel);
+        formData.append("focus_column", ""); // Empty for PER_ROW mode
+        
+        // Params for query string
+        const queryParams = new URLSearchParams({
+          granularity: operationMode,
+          verbosity: detailLevel.toString(),
+          chunk_size: maxRows.toString()
+        });
+        
+        // Get token for auth
+        const token = localStorage.getItem("access_token");
+        
+        // Call the API
+        const response = await fetch(`/api/job/estimate?${queryParams.toString()}`, {
+          method: "POST",
+          body: formData,
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `Error ${response.status}: ${response.statusText}`);
+        }
+        
+        // Get the estimate data
+        const estimateData = await response.json();
+        
+        // Log localStorage state for debugging
+        console.log("localStorage state:", {
+          promptId: localStorage.getItem("currentPromptId"),
+          mediaId: localStorage.getItem("currentMediaId"),
+          modelId: localStorage.getItem("currentModelId"),
+          fileName: localStorage.getItem("currentFileName")
+        });
+        
+        // Save real estimate data to localStorage
+        localStorage.setItem("jobEstimateData", JSON.stringify(estimateData));
+        
+        // Clear intervals before redirecting
+        clearInterval(progressInterval);
+        clearInterval(statusInterval);
+        
+        // Complete the loading
+        setLoadingProgress(100);
+        setLoadingStage("Completed! Redirecting...");
+        
+        // Navigate to confirmation page
+        setTimeout(() => {
+          console.log("Redirecting with estimate data:", estimateData);
+          router.push("/confirmation");
+        }, 800);
+      } catch (error) {
+        console.error("Error estimating job:", error);
+        
+        // Clear intervals
+        clearInterval(progressInterval);
+        clearInterval(statusInterval);
+        
+        // Show error to user
+        setErrorMsg(error instanceof Error ? error.message : "Failed to get cost estimate");
+        setIsSubmitting(false);
+        setLoadingProgress(0);
+      }
+    };
+    
+    // Call the API after a slight delay to let the UI update
+    setTimeout(callEstimateApi, 500);
   };
   
     // Cancel estimation
-    const handleCancel = () => {
-      setIsSubmitting(false);
-      setErrorMsg("Estimation cancelled by user");
-      setLoadingProgress(0);
-      setLoadingStage("Cancelled");
-    };
+      const handleCancel = () => {
+        // Clear any intervals that might be running
+        const maxIntervalId = window.setTimeout(() => {}, 0);
+        for (let i = 0; i < maxIntervalId; i++) {
+          window.clearTimeout(i);
+          window.clearInterval(i);
+        }
+      
+        setIsSubmitting(false);
+        setErrorMsg("Estimation cancelled by user");
+        setLoadingProgress(0);
+        setLoadingStage("Cancelled");
+      };
 
   // Auth loading screen
   if (checkingAuth) {
@@ -234,6 +315,38 @@ export default function ModelSelectPage() {
               {errorMsg}
             </div>
           )}
+          
+          {/* Debug Button - only visible in development */}
+          <button 
+            onClick={() => {
+              const promptId = localStorage.getItem("currentPromptId");
+              const mediaId = localStorage.getItem("currentMediaId");
+              const modelId = localStorage.getItem("currentModelId");
+              
+              const storageData = {
+                promptId: promptId,
+                mediaId: mediaId, 
+                modelId: modelId,
+                fileName: localStorage.getItem("currentFileName"),
+                detailLevel: localStorage.getItem("detailLevel"),
+                operationMode: localStorage.getItem("operationMode"),
+                maxRows: localStorage.getItem("maxRows")
+              };
+              
+              // Fix filename if missing
+              if (!storageData.fileName || storageData.fileName === "null") {
+                localStorage.setItem("currentFileName", "uploaded_file.xlsx");
+                storageData.fileName = "uploaded_file.xlsx";
+              }
+              
+              console.log("LocalStorage Contents:", storageData);
+              alert("LocalStorage check: " + JSON.stringify(storageData, null, 2) + 
+                    "\n\nAll Required IDs Present: " + (!!promptId && !!mediaId && !!modelId));
+            }}
+            className="mb-4 bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2 rounded-md text-sm"
+          >
+            Debug: Check localStorage
+          </button>
 
           <div>
             {/* AI Model Selection */}
@@ -315,12 +428,11 @@ export default function ModelSelectPage() {
                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="PER_ROW">Row</option>
-                  <option value="PER_CELL">Cell</option>
+                  {/* Disabled Cell mode as we're only using Row mode for now */}
+                  <option value="PER_CELL" disabled>Cell (Disabled)</option>
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
-                  {operationMode === "PER_ROW" 
-                    ? "Processes data by rows (faster for horizontal data)" 
-                    : "Processes data by cells (more efficient for vertically structured data)"}
+                  Processes data by rows (faster for horizontal data)
                 </p>
               </div>
 

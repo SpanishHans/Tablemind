@@ -13,6 +13,6 @@ redis
 aiofiles
 pandas
 openpyxl
+odfpy
 tiktoken
 google-genai
-jinja2
