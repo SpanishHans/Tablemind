@@ -408,7 +408,12 @@ export default function ConfirmationPage() {
   };
   
   // Stylized card for confirmation details
-  const DetailCard = ({ icon, title, value, color = "blue" }) => (
+  const DetailCard = ({ icon, title, value, color = "blue" }: { 
+    icon: React.ReactNode; 
+    title: string; 
+    value: string; 
+    color?: string;
+  }) => (
     <motion.div 
       className={`bg-gray-800/70 backdrop-blur-sm p-4 rounded-xl border border-gray-700 shadow-lg`}
       initial={{ opacity: 0, y: 10 }}
