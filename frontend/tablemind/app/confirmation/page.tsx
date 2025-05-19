@@ -403,7 +403,7 @@ export default function ConfirmationPage() {
   };
   
   // Format number with commas
-  const formatNumber = (num) => {
+  const formatNumber = (num: number) => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
   
