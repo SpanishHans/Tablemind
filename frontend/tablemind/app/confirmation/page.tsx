@@ -281,7 +281,7 @@ export default function ConfirmationPage() {
             const previewRows = lines.slice(1, Math.min(11, lines.length));
             data = previewRows.map(line => {
               const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-              const row = {};
+              const row: { [key: string]: string } = {};
               headers.forEach((header, i) => {
                 row[header] = values[i] || '';
               });
@@ -319,7 +319,7 @@ export default function ConfirmationPage() {
                 const previewRows = lines.slice(1, Math.min(11, lines.length));
                 data = previewRows.map(line => {
                   const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-                  const row = {};
+                  const row: { [key: string]: string } = {};
                   headers.forEach((header, i) => {
                     row[header] = values[i] || '';
                   });
