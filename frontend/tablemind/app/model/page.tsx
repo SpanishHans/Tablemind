@@ -68,7 +68,7 @@ export default function ModelPage() {
         setModels(data);
         
         // Auto-select first active model
-        const activeModels = data.filter(m => m.is_active);
+        const activeModels = data.filter((m: Model) => m.is_active);
         if (activeModels.length > 0) {
           setSelectedModel(activeModels[0].model_id);
         }
