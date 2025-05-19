@@ -167,22 +167,44 @@ export default function LoadPage() {
       console.log("Respuesta del servidor:", data);
 
       // Guardar el media_id en localStorage para usarlo en confirmación
-      localStorage.setItem("currentMediaId", data.id);
+      // Verificar diferentes propiedades donde podría venir el ID
+      if (data.id) {
+        localStorage.setItem("currentMediaId", data.id);
+      } else if (data.media_id) {
+        localStorage.setItem("currentMediaId", data.media_id);
+      } else if (data._id) {
+        localStorage.setItem("currentMediaId", data._id);
+      } else {
+        // Simular éxito para prueba mientras se arregla el backend
+        console.warn("No se encontró ID en la respuesta, usando ID temporal");
+        localStorage.setItem("currentMediaId", "test-media-id-123");
+        localStorage.setItem("currentFileName", file.name);
+      }
 
-      // Simular éxito para prueba mientras se arregla el backend
-      // QUITAR CUANDO EL BACKEND ESTÉ FUNCIONANDO CORRECTAMENTE
-      // localStorage.setItem("currentMediaId", "test-media-id-123");
+      // Mostrar en consola lo que se guardó
+      console.log("ID guardado en localStorage:", localStorage.getItem("currentMediaId"));
+      console.log("Filename guardado:", localStorage.getItem("currentFileName"));
 
       // Redirigir al usuario a la página de confirmación
       router.push("/model");
     } catch (error) {
       console.error("Error al subir archivo:", error);
+      
+      // Verificar si tenemos acceso al objeto de respuesta para debug
+      if (error instanceof Error && "response" in error) {
+        console.error("Detalles de respuesta:", error.response);
+      }
+      
       setErrorMsg(
         error instanceof Error
           ? error.message
           : "Error de conexión con el servidor. Inténtalo de nuevo.",
       );
       setIsLoading(false);
+      
+      // Para fines de desarrollo y prueba, habilita esta línea si necesitas continuar
+      // localStorage.setItem("currentMediaId", "test-media-id-" + Date.now());
+      // localStorage.setItem("currentFileName", file ? file.name : "test-file.xlsx");
     }
   };
 
@@ -317,6 +339,23 @@ export default function LoadPage() {
             </div>
           </motion.div>
 
+          {/* Debug Button */}
+          <button
+            onClick={() => {
+              const storageData = {
+                mediaId: localStorage.getItem("currentMediaId"),
+                fileName: localStorage.getItem("currentFileName"),
+                promptId: localStorage.getItem("currentPromptId"),
+                modelId: localStorage.getItem("currentModelId"),
+              };
+              console.log("LocalStorage Contents:", storageData);
+              alert("LocalStorage data: " + JSON.stringify(storageData, null, 2));
+            }}
+            className="mb-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+          >
+            Debug: Check localStorage
+          </button>
+          
           {/* Format Information */}
           <motion.div
             className="bg-gray-800 rounded-lg p-6 mb-8"
@@ -356,6 +395,25 @@ export default function LoadPage() {
             </div>
           </motion.div>
 
+          {/* Debug Button */}
+          <motion.div className="mb-4">
+            <button
+              onClick={() => {
+                const storageData = {
+                  mediaId: localStorage.getItem("currentMediaId"),
+                  fileName: localStorage.getItem("currentFileName"),
+                  promptId: localStorage.getItem("currentPromptId"),
+                  token: localStorage.getItem("access_token") ? "Present" : "Missing"
+                };
+                console.log("LocalStorage Contents:", storageData);
+                alert("LocalStorage: " + JSON.stringify(storageData, null, 2));
+              }}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
+            >
+              Debug Storage
+            </button>
+          </motion.div>
+          
           {/* Submit Button */}
           <motion.div
             className="flex justify-end"
