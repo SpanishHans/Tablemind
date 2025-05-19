@@ -1,9 +1,15 @@
-FROM node:20
-WORKDIR /app
+# Stage 1: Build the Next.js app
+FROM node:20 AS builder
+
+WORKDIR /tablemind
+
 RUN npm install -g pnpm
 
-COPY ./frontend/app/package.json ./frontend/app/pnpm-lock.yaml ./
+COPY ./frontend/tablemind/pnpm-lock.yaml ./frontend/tablemind/package.json ./
 RUN pnpm install
 
-EXPOSE 5173
-CMD ["pnpm", "dev", "--host", "0.0.0.0"]
+COPY ./frontend/tablemind ./
+
+EXPOSE 3000
+
+CMD ["pnpm", "dev"]

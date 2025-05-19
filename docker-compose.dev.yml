@@ -8,9 +8,9 @@ services:
     env_file: ./.env
     container_name: tablemind_front
     ports:
-      - "${PORT_FRNT}:5173"
+      - "${PORT_FRNT}:3000"
     volumes:
-      - ./frontend/app:/app
+      - ./frontend/tablemind:/tablemind
     networks:
       - app_net
 

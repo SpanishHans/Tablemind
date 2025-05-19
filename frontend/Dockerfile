@@ -1,26 +1,28 @@
 # Stage 1: Build the Next.js app
 FROM node:20 AS builder
 
-WORKDIR /app
+WORKDIR /tablemind
+
+# Install pnpm manually
 RUN npm install -g pnpm
 
-COPY ./frontend/app/pnpm-lock.yaml ./frontend/app/package.json ./
+# Copy dependencies and install only production dependencies
+COPY ./frontend/tablemind/pnpm-lock.yaml ./frontend/tablemind/package.json ./
 RUN pnpm install --frozen-lockfile
 
-COPY ./frontend/app ./
+COPY ./frontend/tablemind ./
 RUN pnpm build
 
 # Stage 2: Run the app
 FROM node:20 AS runner
 
-WORKDIR /app
+WORKDIR /tablemind
 
 # Copy the standalone output
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile --prod
+COPY --from=builder /tablemind/.next/standalone ./
+COPY --from=builder /tablemind/public ./public
+COPY --from=builder /tablemind/.next/static ./.next/static
 
-EXPOSE 5173
+EXPOSE 3000
 
-CMD ["node", "./build/index.js"]
+CMD ["node", "server.js"]
