@@ -86,6 +86,9 @@ def process_chunk(
     This function takes a chunk of data, processes it through the LLM and ensures
     the output preserves the original row indices for proper mapping back to the dataframe.
     The results will be added to the dataframe as a new column 'Analysis_Result'.
+    
+    Returns a dictionary with 'output_data' containing the processed results for each row.
+    Each row result includes 'row' (original index), 'input' (original data), and 'output' (LLM response).
     """
     try:
         model_name = model_name or "gemini-1.5-flash"
@@ -125,10 +128,20 @@ def process_chunk(
                     verbosity, min(maxOutputTokens, 10000)  # Smaller token limit for single rows
                 )
                 print(f"DEBUG: Successfully processed row {idx}")
+                
+                # Ensure response is well-formatted for Excel output
+                formatted_response = row_response.strip() if isinstance(row_response, str) else str(row_response)
+                # Remove any markdown formatting if present
+                if formatted_response.startswith("```") and "```" in formatted_response[3:]:
+                    # Extract content between markdown code blocks
+                    parts = formatted_response.split("```")
+                    if len(parts) >= 3:  # At least one code block
+                        formatted_response = parts[1].strip()
+                
                 output_data.append({
                     "row": row_idx,
                     "input": item["data"],
-                    "output": row_response
+                    "output": formatted_response
                 })
             except Exception as e:
                 # If individual processing fails, add error message
@@ -143,6 +156,10 @@ def process_chunk(
         # Update the chunk with the results
         processed_chunk = chunk_data.copy()
         processed_chunk["output_data"] = output_data
+        
+        # Print summary of processing
+        success_count = sum(1 for item in output_data if not str(item.get('output', '')).startswith('Error'))
+        print(f"Successfully processed {success_count} out of {len(output_data)} rows")
         
         return processed_chunk
         

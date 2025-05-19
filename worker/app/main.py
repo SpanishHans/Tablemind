@@ -274,17 +274,31 @@ async def process_job_async(job_id: str):
                                 logger.warning(f"⚠️ Model test failed, using fallback: {fallback_models[0]}")
                                 verified_model = fallback_models[0]
                             
-                            processed_chunk = process_chunk(
-                                chunk_data=chunk_data,
-                                prompt_text=prompt.prompt_text,
-                                model_name=verified_model,
-                                api_key=api_key,
-                                verbosity=verbosity,
-                                maxOutputTokens=maxOutputTokens,
-                            )
-                        except Exception as model_error:
-                            logger.error(f"Error with model configuration: {str(model_error)}")
-                            raise Exception(f"Model configuration error: {str(model_error)}")
+                            try:
+                                logger.info(f"Starting chunk processing with model: {model_name}")
+                                # Add debug info to track processing
+                                chunk_data["debug_info"] = {
+                                    "chunk_index": chunk.chunk_index,
+                                    "timestamp": datetime.datetime.now().isoformat()
+                                }
+                            
+                                processed_chunk = process_chunk(
+                                    chunk_data=chunk_data,
+                                    prompt_text=prompt.prompt_text,
+                                    model_name=model_name,
+                                    api_key=api_key,
+                                    verbosity=verbosity,
+                                    maxOutputTokens=maxOutputTokens,
+                                )
+                            
+                                # Validate the processed chunk has expected structure
+                                if not processed_chunk or not isinstance(processed_chunk, dict):
+                                    raise Exception("Invalid processed chunk response format")
+                                
+                                logger.info(f"Finished processing chunk {chunk.chunk_index} - received valid response")
+                            except Exception as model_error:
+                                logger.error(f"Error with model processing: {str(model_error)}")
+                                raise Exception(f"Model processing error: {str(model_error)}")
                     
                         # Check for errors in the processed chunk
                         if "error" in processed_chunk:
@@ -298,7 +312,19 @@ async def process_job_async(job_id: str):
                             # Make sure each result has proper row mapping
                             for output_item in chunk.output_data:
                                 if isinstance(output_item, dict) and 'row' in output_item:
-                                    results["combined_results"].append(output_item)
+                                    # Ensure clean output format for Excel
+                                    clean_item = {
+                                        "row": output_item.get("row", 0),
+                                        "input": output_item.get("input", {}),
+                                        "output": output_item.get("output", "")
+                                    }
+                                    results["combined_results"].append(clean_item)
+                                
+                            # Log success for tracking
+                            logger.info(f"Added {len(chunk.output_data)} results from chunk {chunk.chunk_index} to combined results")
+                        else:
+                            logger.warning(f"Chunk {chunk.chunk_index} has no output_data to add to combined results")
+                        
                         results["chunks_processed"] += 1
                     except Exception as chunk_error:
                         # Handle chunk processing errors
@@ -328,17 +354,24 @@ async def process_job_async(job_id: str):
                         # Sort by row number for proper order
                         results["combined_results"].sort(key=lambda x: x.get("row", 0))
                         
+                        # Clear out any existing combined_results to avoid issues
+                        job.combined_results = []
+                        await session.commit()
+                        
                         # Format the combined results for Excel output with 'Analysis_Result' column
                         formatted_results = []
                         for result in results["combined_results"]:
                             if isinstance(result, dict) and 'output' in result:
+                                # Create a simplified result structure
                                 formatted_results.append({
                                     "row": result.get("row", 0),
+                                    "input": result.get("input", {}),
                                     "output": result.get("output", "")
                                 })
-                        
+                    
                         # Store the combined dataframe result with the job
                         job.combined_results = formatted_results
+                        logger.info(f"Saving {len(formatted_results)} results to job {job_id}")
                         logger.info(f"Successfully mapped {len(formatted_results)} results back to dataframe with 'Analysis_Result' column")
                     except Exception as format_error:
                         logger.error(f"Error formatting results: {str(format_error)}")

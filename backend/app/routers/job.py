@@ -106,6 +106,7 @@ async def start_job(
 @router.get("/status", response_model=ResponseJobStatus)
 async def check_job_status(
     job_id: uuid.UUID = Query(..., description="Job ID"),
+    include_data: bool = Query(False, description="Include full data in diagnosis"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -170,6 +171,21 @@ async def get_job_results(
             "output_data": chunk.output_data if chunk.status == JobStatus.FINISHED else None
         }
         response["chunks"].append(chunk_data)
+    
+    # Add combined results if requested
+    if include_data and hasattr(job, "combined_results") and job.combined_results:
+        response["combined_results_sample"] = []
+        # Include first 2 items as sample
+        for i, result in enumerate(job.combined_results[:2]):
+            sample = {
+                "index": i,
+                "has_row": "row" in result,
+                "row_value": result.get("row"),
+                "has_output": "output" in result,
+                "output_type": str(type(result.get("output"))),
+                "output_length": len(str(result.get("output", "")))
+            }
+            response["combined_results_sample"].append(sample)
 
     return response
 
@@ -226,11 +242,13 @@ async def download_job_file(
                 
                 # Get the original file data to enrich with results
                 original_data = {}
+                logger.info(f"Building original data from {len(chunks)} chunks")
                 for chunk in chunks:
                     if hasattr(chunk, 'source_data') and chunk.source_data:
                         for item in chunk.source_data:
                             if isinstance(item, dict) and 'row' in item and 'data' in item:
                                 original_data[item['row']] = item['data']
+                logger.info(f"Original data contains {len(original_data)} rows")
             
                 for row in original_job.combined_results:
                     if not isinstance(row, dict) or 'row' not in row:
@@ -250,14 +268,31 @@ async def download_job_file(
                                 output_row['Analysis_Result'] = json.dumps(row['output'])
                             else:
                                 # If output is a string or other type, add it directly
-                                output_row['Analysis_Result'] = str(row['output'])
+                                output_text = str(row['output']).strip()
+                                # Clean up the text a bit by removing markdown if present
+                                if output_text.startswith("```") and "```" in output_text[3:]:
+                                    parts = output_text.split("```")
+                                    if len(parts) >= 3:
+                                        output_text = parts[1].strip()
+                                output_row['Analysis_Result'] = output_text
                         except Exception as output_error:
                             # Handle any serialization errors
                             output_row['Analysis_Result'] = f"Error processing output: {str(output_error)}"
+                            logger.error(f"Error processing output: {str(output_error)}")
+                    else:
+                        # Ensure there's always an Analysis_Result column, even if empty
+                        output_row['Analysis_Result'] = ""
                 
                     # Add the row if we have data
                     if output_row:
                         all_rows.append(output_row)
+                        
+                    # Ensure we have at least one row with Analysis_Result column
+                    if not all_rows and original_data:
+                        for idx, data in original_data.items():
+                            row_data = data.copy()
+                            row_data['Analysis_Result'] = "No result available"
+                            all_rows.append(row_data)
             except Exception as combined_error:
                 logger.error(f"Error processing combined results: {str(combined_error)}")
                 # Fall through to next method if this fails
@@ -324,27 +359,51 @@ async def download_job_file(
         if not all_rows:
             logger.error(f"No processable data found in job {job_id} with {len(chunks)} chunks")
 
-            # Final fallback: Just include any non-null data we can find
+            # Final fallback: Try to extract original data from source_data
             fallback_data = []
+            
+            # First try to get original data from source_data
             for chunk in chunks:
-                chunk_dict = {k: v for k, v in vars(chunk).items()
-                              if k not in ['_sa_instance_state', 'id', 'job_id', 'user_id', 'hash', 'created_at', 'completed_at']}
-                fallback_data.append(chunk_dict)
+                if hasattr(chunk, 'source_data') and chunk.source_data:
+                    for item in chunk.source_data:
+                        if isinstance(item, dict) and 'data' in item:
+                            row_data = item['data'].copy() if isinstance(item['data'], dict) else {'value': item['data']}
+                            row_data['Analysis_Result'] = "Processing failed"
+                            fallback_data.append(row_data)
+            
+            # If still no data, use chunk metadata
+            if not fallback_data:
+                for chunk in chunks:
+                    chunk_dict = {k: v for k, v in vars(chunk).items()
+                                if k not in ['_sa_instance_state', 'id', 'job_id', 'user_id', 'hash', 'created_at', 'completed_at']}
+                    chunk_dict['Analysis_Result'] = "No results available"
+                    fallback_data.append(chunk_dict)
 
             if fallback_data:
                 logger.warning(f"Using fallback data extraction for job {job_id}")
                 df = pd.DataFrame(fallback_data)
             else:
-                raise HTTPException(
-                    status_code=404,
-                    detail="No processed data found in chunks"
-                )
+                # Absolute last resort - create a single row with explanation
+                df = pd.DataFrame([{'Analysis_Result': "Unable to process data. Please try again."}])
         else:
             logger.info(f"Creating dataframe with {len(all_rows)} rows from {processed_chunks} chunks")
             df = pd.DataFrame(all_rows)
+            
+            # Ensure Analysis_Result column exists
+            if 'Analysis_Result' not in df.columns:
+                df['Analysis_Result'] = "Processing completed but no results available"
+                
+            # Make sure we have an Analysis_Result column even if not in the data
+            if 'Analysis_Result' not in df.columns:
+                df['Analysis_Result'] = ""
                 
             # Make sure 'Analysis_Result' is the last column for better UX
             if 'Analysis_Result' in df.columns:
+                columns = [col for col in df.columns if col != 'Analysis_Result'] + ['Analysis_Result']
+                df = df[columns]
+            else:
+                # If Analysis_Result column doesn't exist, add it
+                df['Analysis_Result'] = "Result not available"
                 columns = [col for col in df.columns if col != 'Analysis_Result'] + ['Analysis_Result']
                 df = df[columns]
 
@@ -353,12 +412,8 @@ async def download_job_file(
             # Make sure we have data to export
             if df.empty:
                 logger.warning(f"No data to export for job {job_id}")
-                raise HTTPException(status_code=404, detail="No data to export")
-                
-            # Make sure 'Analysis_Result' is the last column for better UX
-            if 'Analysis_Result' in df.columns:
-                columns = [col for col in df.columns if col != 'Analysis_Result'] + ['Analysis_Result']
-                df = df[columns]
+                # Create a simple DataFrame with empty results as fallback
+                df = pd.DataFrame([{'Analysis_Result': "No results available"}])
                 
             # Clean up any NaN values before exporting
             df = df.fillna('')
@@ -370,11 +425,16 @@ async def download_job_file(
                     # Auto-adjust columns width
                     try:
                         worksheet = writer.sheets['Results']
+                        # Make Analysis_Result column extra wide for better readability
                         for idx, col in enumerate(df.columns):
                             if idx < 26:  # Excel columns only go to Z (26)
-                                max_len = df[col].astype(str).map(len).max()
-                                max_len = max(max_len, len(col)) + 2  # adding a little extra space
-                                worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 100)  # limit to 100 to avoid excessive width
+                                if col == 'Analysis_Result':
+                                    # Make analysis column wider
+                                    worksheet.column_dimensions[chr(65 + idx)].width = 100
+                                else:
+                                    max_len = df[col].astype(str).map(len).max()
+                                    max_len = max(max_len, len(col)) + 2  # adding a little extra space
+                                    worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 100)  # limit to 100 to avoid excessive width
                     except Exception as format_error:
                         logger.warning(f"Could not auto-format Excel columns: {str(format_error)}")
             
