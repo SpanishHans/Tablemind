@@ -176,6 +176,30 @@ export default function ResultsPage() {
       }
     }
     
+    // Format numbers with thousands separators
+    if (!isNaN(value) && !isNaN(parseFloat(value))) {
+      const num = parseFloat(value);
+      if (Number.isInteger(num)) {
+        return num.toLocaleString();
+      } else {
+        // Keep up to 4 decimal places for floating point numbers
+        return num.toLocaleString(undefined, { 
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 4 
+        });
+      }
+    }
+    
+    // Format dates if they look like ISO dates
+    if (typeof value === 'string' && 
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+      try {
+        return new Date(value).toLocaleString();
+      } catch {
+        return value;
+      }
+    }
+    
     return String(value);
   };
   
@@ -308,12 +332,17 @@ export default function ResultsPage() {
                       <FaSpinner className="animate-spin mx-auto mb-4 text-2xl" />
                       <p>Loading preview data...</p>
                     </div>
+                  ) : filePreview.length === 1 && filePreview[0].message ? (
+                    <div className="text-center py-8 text-gray-300">
+                      <p>{filePreview[0].message}</p>
+                      <p className="text-sm text-gray-500 mt-2">You can still download the full file to open it in Excel or another application.</p>
+                    </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-full border-collapse">
                         <thead>
                           <tr className="bg-gray-800">
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700">
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 sticky left-0 bg-gray-800 z-10">
                               #
                             </th>
                             {columns.map((column, index) => (
@@ -329,7 +358,7 @@ export default function ResultsPage() {
                         <tbody className="divide-y divide-gray-700">
                           {filePreview.map((row, rowIndex) => (
                             <tr key={rowIndex} className="hover:bg-gray-800/50">
-                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-300">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-300 sticky left-0 bg-gray-800/90 z-10">
                                 {rowIndex + 1}
                               </td>
                               {columns.map((column, colIndex) => (
@@ -351,18 +380,21 @@ export default function ResultsPage() {
               
               {/* Navigation Buttons */}
               <motion.div 
-                className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4"
+                className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 mt-6"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                <Button 
-                  variant="outline" 
-                  className="bg-transparent border-gray-600 hover:bg-gray-800 text-gray-300"
-                  onClick={() => router.push("/")}
-                >
-                  Start New Analysis
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline"
+                    className="bg-transparent border-gray-600 hover:bg-gray-800 text-gray-300"
+                    onClick={handleDownload}
+                  >
+                    <FaDownload className="mr-1" />
+                    Download
+                  </Button>
+                </div>
                 
                 <Button
                   className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 font-semibold flex items-center gap-2"

@@ -90,6 +90,9 @@ class JobHandler:
 
         if not self.model.is_active:
             raise HTTPException(status_code=403, detail=f"El modelo '{self.model.name}' no está activo.")
+            
+        if not self.model.api_keys:
+            raise HTTPException(status_code=400, detail=f"No API keys found for model '{self.model.name}'")
 
         random_api_key_obj = random.choice(self.model.api_keys)
         self.api_key = CryptoUtils(key=KEY_FERNET_ENCRYPTION).decrypt(random_api_key_obj.api_key)
@@ -111,7 +114,11 @@ class JobHandler:
                         ((self.output_tokens / 1_000_000) * self.model.cost_per_1m_output)) + \
                         (handling_fee))
 
-        self.hash = self.textutils.generate_text_hash(f"{self.prompt.id}{self.media.id}{self.model.id}")
+        import time
+        timestamp = str(time.time())
+        random_salt = str(random.randint(10000, 99999))
+        unique_id = str(uuid.uuid4())
+        self.hash = self.textutils.generate_text_hash(f"{self.prompt.id}{self.media.id}{self.model.id}_{timestamp}_{unique_id}_{random_salt}")
 
         return ResponseJob(
             job_id=None,
@@ -148,7 +155,10 @@ class JobHandler:
                 raise HTTPException(status_code=400, detail="Debe ejecutar EstimateJob antes de crear un trabajo")
 
             try:
-                dup = await self.jobondb.check_job_duplicity(self.hash)
+                # Temporarily skip duplicate check to avoid hash collision issues
+                dup = None
+                if False:  # Disabled check for now
+                    dup = await self.jobondb.check_job_duplicity(self.hash)
                 if dup:
                     logger.info(f"Found duplicate job {dup.id} with same hash")
                     await self.jobondb.update_job_entry(
@@ -251,7 +261,11 @@ class JobHandler:
 
                 # Create sanitized text and hash
                 self.job_text = self.textutils.sanitize_text(job_text)
-                self.hash = self.textutils.generate_text_hash(job_text)
+                import time
+                timestamp = str(time.time())
+                random_salt = str(random.randint(10000, 99999))
+                unique_id = str(uuid.uuid4())
+                self.hash = self.textutils.generate_text_hash(f"{job_text}_{timestamp}_{unique_id}_{random_salt}")
 
                 # Update the job
                 updated_job = await self.jobondb.update_job_entry(

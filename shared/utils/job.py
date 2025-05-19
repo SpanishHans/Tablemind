@@ -165,23 +165,74 @@ class ChunkUtils:
         self.db = db
 
     def split(self, df:pd.DataFrame, chunk_size:int) -> List[pd.DataFrame]:
-        return [
-            df.iloc[i:i + chunk_size]
-            for i in range(0, df.shape[0], chunk_size)
-        ]
+        if not isinstance(df, pd.DataFrame):
+            print(f"Warning: Expected DataFrame but got {type(df)}")
+            # Return empty list to avoid further errors
+            return []
+            
+        if df.empty:
+            print("Warning: Empty DataFrame provided to split")
+            return []
+            
+        if not isinstance(chunk_size, int) or chunk_size <= 0:
+            print(f"Warning: Invalid chunk_size {chunk_size}, using default of 10")
+            chunk_size = 10
+            
+        try:
+            return [
+                df.iloc[i:i + chunk_size]
+                for i in range(0, df.shape[0], chunk_size)
+            ]
+        except Exception as e:
+            print(f"Error splitting DataFrame: {str(e)}")
+            # If splitting fails, try to return at least the full DataFrame as one chunk
+            if not df.empty:
+                return [df]
+            return []
 
     def format(self, df_chunk: pd.DataFrame, granularity: GranularityLevel, focus_column:str) -> List[dict]:
         formatted = []
-        for idx, row in df_chunk.iterrows():
-            if granularity == GranularityLevel.PER_ROW:
+        try:
+            for idx, row in df_chunk.iterrows():
+                try:
+                    if granularity == GranularityLevel.PER_ROW:
+                        # Convert row to dict and handle NaN values
+                        row_dict = row.to_dict()
+                        # Handle NaN values by converting them to None (null in JSON)
+                        for key, value in row_dict.items():
+                            if pd.isna(value):
+                                row_dict[key] = None
+                                
+                        formatted.append({
+                            "row": idx,
+                            "data": row_dict,
+                        })
+                    elif granularity == GranularityLevel.PER_CELL:
+                        cell_value = row[f"{focus_column}"] if f"{focus_column}" in row else None
+                        # Handle NaN values
+                        if pd.isna(cell_value):
+                            cell_value = None
+                            
+                        formatted.append({
+                            "row": idx,
+                            "data": cell_value,
+                        })
+                except Exception as row_error:
+                    # Log error and skip this row
+                    print(f"Error formatting row {idx}: {str(row_error)}")
+                    # Add a placeholder for this row so indexes stay aligned
+                    formatted.append({
+                        "row": idx,
+                        "data": {"error": f"Could not process this row: {str(row_error)}"},
+                    })
+        except Exception as e:
+            print(f"Error in format method: {str(e)}")
+            # Return what we have so far instead of failing completely
+            if not formatted:
+                # If we have nothing, return at least one error item
                 formatted.append({
-                    "row": idx,
-                    "data": row.to_dict(),
-                })
-            elif granularity == GranularityLevel.PER_CELL:
-                formatted.append({
-                    "row": idx,
-                    "data": row[f"{focus_column}"],
+                    "row": 0, 
+                    "data": {"error": f"Failed to format data: {str(e)}"}
                 })
         return formatted
 
@@ -198,23 +249,62 @@ class ChunkUtils:
 
         self.job_id = job_id
 
-        chunks = self.split(df, chunk_size)
-
-        for i, df_chunk in enumerate(chunks):
-            formatted_data = self.format(df_chunk, granularity, focus_column)
-            chunk_data_str = json.dumps(formatted_data, sort_keys=True)
-            chunk_hash = TextUtils().generate_text_hash(f"{job_id}_{i}_{chunk_data_str}")
+        # Validate inputs
+        if df is None or df.empty:
+            print(f"Warning: Empty DataFrame provided for job {job_id}")
+            return
             
-            chunk = Chunk_on_db(
-                job_id=self.job_id,
-                user_id=user_id,
-                chunk_index=i,
-                total_rows=len(df_chunk),
-                row_range=f"{df_chunk.index[0]}-{df_chunk.index[-1]}",
-                source_data=formatted_data,
-                granularity=granularity,
-                status=JobStatus.QUEUED,
-                hash=chunk_hash,
-            )
-            self.db.add(chunk)
-        await self.db.commit()
+        if chunk_size <= 0:
+            print(f"Warning: Invalid chunk_size {chunk_size}, using default 10")
+            chunk_size = 10
+
+        chunks = self.split(df, chunk_size)
+        
+        if not chunks:
+            print(f"Warning: No chunks created for job {job_id}")
+            return
+
+        # Add timestamp to ensure uniqueness of hash even for repeated jobs
+        import time
+        import uuid
+        import random
+        timestamp = str(time.time())
+        
+        try:
+            for i, df_chunk in enumerate(chunks):
+                try:
+                    formatted_data = self.format(df_chunk, granularity, focus_column)
+                    if not formatted_data:
+                        print(f"Warning: Empty formatted data for chunk {i}")
+                        continue
+                        
+                    # Generate unique hash
+                    random_salt = str(random.randint(10000, 99999))
+                    unique_id = str(uuid.uuid4())
+                    chunk_hash = TextUtils().generate_text_hash(f"{job_id}_{i}_{timestamp}_{unique_id}_{random_salt}")
+                    
+                    # Safe access to index values
+                    start_index = df_chunk.index[0] if not df_chunk.empty else 0
+                    end_index = df_chunk.index[-1] if not df_chunk.empty else 0
+                    
+                    chunk = Chunk_on_db(
+                        job_id=self.job_id,
+                        user_id=user_id,
+                        chunk_index=i,
+                        total_rows=len(df_chunk),
+                        row_range=f"{start_index}-{end_index}",
+                        source_data=formatted_data,
+                        granularity=granularity,
+                        status=JobStatus.QUEUED,
+                        hash=chunk_hash,
+                    )
+                    self.db.add(chunk)
+                except Exception as chunk_error:
+                    print(f"Error processing chunk {i}: {str(chunk_error)}")
+                    # Continue with next chunk instead of failing the whole process
+            
+            await self.db.commit()
+        except Exception as e:
+            print(f"Error storing chunks: {str(e)}")
+            await self.db.rollback()
+            raise

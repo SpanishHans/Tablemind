@@ -301,7 +301,56 @@ export default function ConfirmationPage() {
             localStorage.setItem("previewData", JSON.stringify(data));
           }
         }
-        // Excel/other formats - placeholder for now
+        // Excel parser
+        else if (selectedData.filename.toLowerCase().match(/\.(xlsx|xls|xlsm)$/)) {
+          try {
+            // For Excel files, we need to extract data from the response differently
+            // The backend should already have converted this to a readable format (CSV or JSON)
+            
+            // Try to parse as CSV
+            const lines = text.split('\n');
+            if (lines.length > 0) {
+              const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+              
+              if (headers.length > 1) {
+                setColumns(headers);
+                localStorage.setItem("previewColumns", JSON.stringify(headers));
+                
+                const previewRows = lines.slice(1, Math.min(11, lines.length));
+                data = previewRows.map(line => {
+                  const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+                  const row = {};
+                  headers.forEach((header, i) => {
+                    row[header] = values[i] || '';
+                  });
+                  return row;
+                });
+                localStorage.setItem("previewData", JSON.stringify(data));
+              } else {
+                // Try to parse as JSON as fallback
+                try {
+                  const jsonData = JSON.parse(text);
+                  if (Array.isArray(jsonData) && jsonData.length > 0) {
+                    data = jsonData.slice(0, 10);
+                    const headers = Object.keys(jsonData[0]);
+                    setColumns(headers);
+                    localStorage.setItem("previewColumns", JSON.stringify(headers));
+                    localStorage.setItem("previewData", JSON.stringify(data));
+                  }
+                } catch (innerError) {
+                  throw new Error("Could not parse Excel file data");
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Excel parsing error:", error);
+            data = [{ message: "Could not parse Excel file. The backend should convert Excel to a readable format." }];
+            setColumns(['message']);
+            localStorage.setItem("previewData", JSON.stringify(data));
+            localStorage.setItem("previewColumns", JSON.stringify(['message']));
+          }
+        }
+        // Other formats
         else {
           // For other formats, we'll just show a basic preview
           data = [{ message: "Preview not available for this file format" }];

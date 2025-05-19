@@ -5,8 +5,8 @@ import pandas as pd
 from typing import Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, Query, HTTPException, Header, Response
+from fastapi.responses import FileResponse, JSONResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -157,6 +157,7 @@ async def get_job_results(
         "job_id": str(job_id),
         "status": str(job.job_status) if hasattr(job, "job_status") else "unknown",
         "chunks": [],
+        "combined_results": job.combined_results if hasattr(job, "combined_results") and job.combined_results else [],
         "completed": hasattr(job, "job_status") and job.job_status == JobStatus.FINISHED
     }
 
@@ -217,33 +218,77 @@ async def download_job_file(
         processed_chunks = 0
         processed_rows = 0
 
-        # First attempt: Try to extract from output_data in finished chunks
-        for chunk in chunks:
-            if hasattr(chunk, 'output_data') and chunk.output_data and (not hasattr(chunk, 'status') or chunk.status == JobStatus.FINISHED):
-                processed_chunks += 1
-
-                for row in chunk.output_data:
-                    if not isinstance(row, dict):
+        # First attempt: Try to use combined_results if available
+        if hasattr(original_job, 'combined_results') and original_job.combined_results:
+            try:
+                logger.info(f"Using combined results for job {job_id}")
+                processed_chunks = len(chunks)
+                
+                # Get the original file data to enrich with results
+                original_data = {}
+                for chunk in chunks:
+                    if hasattr(chunk, 'source_data') and chunk.source_data:
+                        for item in chunk.source_data:
+                            if isinstance(item, dict) and 'row' in item and 'data' in item:
+                                original_data[item['row']] = item['data']
+            
+                for row in original_job.combined_results:
+                    if not isinstance(row, dict) or 'row' not in row:
                         continue
-
+                    
                     processed_rows += 1
-
-                    # If there's a direct 'output' field, use that
+                    row_idx = row['row']
+                
+                    # Create output row starting with original data
+                    output_row = original_data.get(row_idx, {}).copy() if row_idx in original_data else {}
+                
+                    # Add the output as a new column 'Analysis_Result'
                     if 'output' in row:
-                        if isinstance(row['output'], dict):
-                            all_rows.append(row['output'])
+                        try:
+                            if isinstance(row['output'], dict):
+                                # If output is a dict, add a serialized version as the result
+                                output_row['Analysis_Result'] = json.dumps(row['output'])
+                            else:
+                                # If output is a string or other type, add it directly
+                                output_row['Analysis_Result'] = str(row['output'])
+                        except Exception as output_error:
+                            # Handle any serialization errors
+                            output_row['Analysis_Result'] = f"Error processing output: {str(output_error)}"
+                
+                    # Add the row if we have data
+                    if output_row:
+                        all_rows.append(output_row)
+            except Exception as combined_error:
+                logger.error(f"Error processing combined results: {str(combined_error)}")
+                # Fall through to next method if this fails
+        # Second attempt: Try to extract from output_data in finished chunks
+        else:
+            for chunk in chunks:
+                if hasattr(chunk, 'output_data') and chunk.output_data and (not hasattr(chunk, 'status') or chunk.status == JobStatus.FINISHED):
+                    processed_chunks += 1
+    
+                    for row in chunk.output_data:
+                        if not isinstance(row, dict):
+                            continue
+    
+                        processed_rows += 1
+    
+                        # If there's a direct 'output' field, use that
+                        if 'output' in row:
+                            if isinstance(row['output'], dict):
+                                all_rows.append(row['output'])
+                            else:
+                                all_rows.append({'result': str(row['output'])})
+                        # Otherwise use any non-special fields
                         else:
-                            all_rows.append({'result': str(row['output'])})
-                    # Otherwise use any non-special fields
-                    else:
-                        output_row = {}
-                        for key, value in row.items():
-                            if key not in ['row', 'input']:
-                                output_row[key] = value
-                        if output_row:
-                            all_rows.append(output_row)
+                            output_row = {}
+                            for key, value in row.items():
+                                if key not in ['row', 'input']:
+                                    output_row[key] = value
+                            if output_row:
+                                all_rows.append(output_row)
 
-        # Second attempt: If no rows found, try to use input data
+        # Third attempt: If no rows found, try to use input data
         if not all_rows:
             logger.warning(f"No output data found in job {job_id}. Trying alternative extraction methods.")
 
@@ -297,15 +342,43 @@ async def download_job_file(
         else:
             logger.info(f"Creating dataframe with {len(all_rows)} rows from {processed_chunks} chunks")
             df = pd.DataFrame(all_rows)
+                
+            # Make sure 'Analysis_Result' is the last column for better UX
+            if 'Analysis_Result' in df.columns:
+                columns = [col for col in df.columns if col != 'Analysis_Result'] + ['Analysis_Result']
+                df = df[columns]
 
         # Export to file based on original extension
         try:
+            # Make sure we have data to export
+            if df.empty:
+                logger.warning(f"No data to export for job {job_id}")
+                raise HTTPException(status_code=404, detail="No data to export")
+                
+            # Make sure 'Analysis_Result' is the last column for better UX
+            if 'Analysis_Result' in df.columns:
+                columns = [col for col in df.columns if col != 'Analysis_Result'] + ['Analysis_Result']
+                df = df[columns]
+                
             # Clean up any NaN values before exporting
             df = df.fillna('')
 
             if file_ext.lower() in ['.xlsx', '.xls']:
-                df.to_excel(export_path, index=False)
-                logger.info(f"Exported Excel file to {export_path}")
+                # Use the ExcelWriter to better format the output
+                with pd.ExcelWriter(export_path, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Results')
+                    # Auto-adjust columns width
+                    try:
+                        worksheet = writer.sheets['Results']
+                        for idx, col in enumerate(df.columns):
+                            if idx < 26:  # Excel columns only go to Z (26)
+                                max_len = df[col].astype(str).map(len).max()
+                                max_len = max(max_len, len(col)) + 2  # adding a little extra space
+                                worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 100)  # limit to 100 to avoid excessive width
+                    except Exception as format_error:
+                        logger.warning(f"Could not auto-format Excel columns: {str(format_error)}")
+            
+                logger.info(f"Exported Excel file to {export_path} with formatted columns")
             elif file_ext.lower() in ['.csv']:
                 df.to_csv(export_path, index=False)
                 logger.info(f"Exported CSV file to {export_path}")

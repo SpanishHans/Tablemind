@@ -49,6 +49,7 @@ class Job_on_db(Base):
     cost_estimate_usd: Mapped[int] = mapped_column(nullable=False)
     input_token_count: Mapped[int] = mapped_column(nullable=False)
     output_token_count: Mapped[int] = mapped_column(nullable=False)
+    combined_results: Mapped[Optional[List[dict]]] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
