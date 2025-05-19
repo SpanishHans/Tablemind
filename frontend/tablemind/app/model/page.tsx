@@ -37,14 +37,16 @@ export default function ModelPage() {
   const [progressStage, setProgressStage] = useState("");
   
   // Provider colors for UI
-  const providerColors = {
-    "Google": "bg-blue-500",
-    "OpenAI": "bg-green-500",
-    "Anthropic": "bg-purple-500",
-    "Meta": "bg-blue-600",
-    "Mistral": "bg-yellow-500",
-    "DeepSeek": "bg-red-500"
-  };
+    type ProviderName = "Google" | "OpenAI" | "Anthropic" | "Meta" | "Mistral" | "DeepSeek";
+  
+    const providerColors: Record<ProviderName, string> = {
+      "Google": "bg-blue-500",
+      "OpenAI": "bg-green-500",
+      "Anthropic": "bg-purple-500",
+      "Meta": "bg-blue-600",
+      "Mistral": "bg-yellow-500",
+      "DeepSeek": "bg-red-500"
+    };
   
   // Load models on mount
   useEffect(() => {
@@ -259,7 +261,7 @@ export default function ModelPage() {
                       } ${!model.is_active ? "opacity-50 cursor-not-allowed" : ""}`}
                       onClick={() => model.is_active && setSelectedModel(model.model_id)}
                     >
-                      <div className={`w-12 h-12 rounded-full ${providerColors[model.provider] || "bg-gray-600"} mb-3 flex items-center justify-center`}>
+                      <div className={`w-12 h-12 rounded-full ${providerColors[model.provider as ProviderName] || "bg-gray-600"} mb-3 flex items-center justify-center`}>
                         <span className="text-white font-bold text-lg">
                           {model.name.charAt(0)}
                         </span>
