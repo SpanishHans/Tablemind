@@ -1,10 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { FaArrowRight, FaCog } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-
+import { FaArrowRight, FaCog } from "react-icons/fa";
 import Topbar from "@/components/layout/Topbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -21,278 +19,197 @@ interface Model {
   max_output_tokens?: number;
 }
 
-export default function ModelSelectPage() {
+export default function ModelPage() {
   const router = useRouter();
   
-  // Model selection states
+  // States
+  const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const [detailLevel, setDetailLevel] = useState<number>(1);
-  const [operationMode, setOperationMode] = useState<string>("PER_ROW");
-  const [maxRows, setMaxRows] = useState<number>(10);
+  const [verbosity, setVerbosity] = useState<number>(0.2);
+  const [granularity, setGranularity] = useState<string>("PER_ROW");
+  const [chunkSize, setChunkSize] = useState<number>(10);
   
   // UI states
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string>("");
-  const [models, setModels] = useState<Model[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [progressStage, setProgressStage] = useState("");
   
-  // Loading states
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingStage, setLoadingStage] = useState("");
-
   // Provider colors for UI
-  const providerColors: Record<string, string> = {
+  const providerColors = {
     "Google": "bg-blue-500",
     "OpenAI": "bg-green-500",
     "Anthropic": "bg-purple-500",
     "Meta": "bg-blue-600",
-    "Cohere": "bg-red-500",
     "Mistral": "bg-yellow-500",
-    "DeepSeek": "bg-red-500",
-    "NVIDIA": "bg-green-600",
-    "Grok": "bg-blue-600"
+    "DeepSeek": "bg-red-500"
   };
-
-  // Load models on component mount
+  
+  // Load models on mount
   useEffect(() => {
-    loadModels();
-  }, [router]);
-
-  // Function to fetch available models
-  const loadModels = async () => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    
-    setCheckingAuth(false);
-    setIsLoading(true);
-    setErrorMsg("");
-    
-    try {
-      const response = await fetch("/api/model/fetch/all", {
-        method: "GET",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `Error ${response.status}: ${response.statusText}`;
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          if (errorData.detail) errorMessage = errorData.detail;
-        } catch {}
-        
-        throw new Error(errorMessage);
-      }
-      
-      const modelsData = await response.json();
-      setModels(modelsData);
-      
-      // Auto-select first active model
-      if (modelsData && modelsData.length > 0) {
-        const activeModels = modelsData.filter((model: Model) => model.is_active);
-        if (activeModels.length > 0) {
-          setSelectedModel(activeModels[0].model_id);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading models:", error);
-      setErrorMsg(error instanceof Error ? error.message : "Error loading models");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle form submission
-  const handleSubmit = () => {
-    if (!selectedModel || isSubmitting) return;
-    
-    // Get required data first to check validity
-    const promptId = localStorage.getItem("currentPromptId");
-    const mediaId = localStorage.getItem("currentMediaId");
-    
-    // Log existing localStorage for debugging
-    console.log("Storage check before submit:", {
-      promptId,
-      mediaId, 
-      modelId: selectedModel,
-      fileName: localStorage.getItem("currentFileName")
-    });
-    
-    // Check if media_id exists
-    if (!mediaId || mediaId === "undefined" || mediaId === "null") {
-      setErrorMsg("File information is missing. Please go back and upload a file first.");
-      return;
-    }
-    
-    // Check if prompt_id exists
-    if (!promptId || promptId === "undefined" || promptId === "null") {
-      setErrorMsg("Prompt information is missing. Please go back and select a prompt first.");
-      return;
-    }
-    
-    // Start loading state
-    setIsSubmitting(true);
-    setErrorMsg("");
-    setLoadingStage("Starting estimation...");
-    setLoadingProgress(10);
-  
-    // Save parameters to localStorage
-    localStorage.setItem("currentModelId", selectedModel);
-    localStorage.setItem("detailLevel", detailLevel.toString());
-    localStorage.setItem("operationMode", operationMode);
-    localStorage.setItem("maxRows", maxRows.toString());
-  
-    // Ensure we're using the actual filename if it's missing
-    const fileName = localStorage.getItem("currentFileName");
-    if (!fileName || fileName === "null") {
-      const mediaId = localStorage.getItem("currentMediaId");
-      if (mediaId) {
-        localStorage.setItem("currentFileName", "uploaded_file.xlsx");
-      }
-    }
-    
-    // Create a simulated loading animation
-    const progressInterval = setInterval(() => {
-      setLoadingProgress(prev => {
-        const newProgress = prev + 5;
-        if (newProgress >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return newProgress;
-      });
-    }, 800);
-    
-    // Update status messages based on progress
-    const statusInterval = setInterval(() => {
-      const currentProgress = loadingProgress;
-      if (currentProgress < 30) {
-        setLoadingStage("Preparing request...");
-      } else if (currentProgress < 50) {
-        setLoadingStage("Calculating input tokens...");
-      } else if (currentProgress < 70) {
-        setLoadingStage("Calculating output tokens...");
-      } else {
-        setLoadingStage("Estimating costs...");
-      }
-    }, 1000);
-    
-    // Call the actual API to get estimation
-    const callEstimateApi = async () => {
+    async function loadModels() {
       try {
-        // Create FormData for the request
-        const formData = new FormData();
-        formData.append("prompt_id", promptId);
-        formData.append("media_id", mediaId);
-        formData.append("model_id", selectedModel);
-        formData.append("focus_column", ""); // Empty for PER_ROW mode
-        
-        // Params for query string
-        const queryParams = new URLSearchParams({
-          granularity: operationMode,
-          verbosity: detailLevel.toString(),
-          chunk_size: maxRows.toString()
-        });
-        
-        // Get token for auth
         const token = localStorage.getItem("access_token");
+        if (!token) {
+          router.push("/login");
+          return;
+        }
         
-        // Call the API
-        const response = await fetch(`/api/job/estimate?${queryParams.toString()}`, {
-          method: "POST",
-          body: formData,
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
+        const response = await fetch("/api/model/fetch/all", {
+          headers: { Authorization: `Bearer ${token}` }
         });
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || `Error ${response.status}: ${response.statusText}`);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
         
-        // Get the estimate data
-        const estimateData = await response.json();
+        const data = await response.json();
+        setModels(data);
         
-        // Log localStorage state for debugging
-        console.log("localStorage state:", {
-          promptId: localStorage.getItem("currentPromptId"),
-          mediaId: localStorage.getItem("currentMediaId"),
-          modelId: localStorage.getItem("currentModelId"),
-          fileName: localStorage.getItem("currentFileName")
-        });
-        
-        // Save real estimate data to localStorage
-        localStorage.setItem("jobEstimateData", JSON.stringify(estimateData));
-        
-        // Clear intervals before redirecting
-        clearInterval(progressInterval);
-        clearInterval(statusInterval);
-        
-        // Complete the loading
-        setLoadingProgress(100);
-        setLoadingStage("Completed! Redirecting...");
-        
-        // Navigate to confirmation page
-        setTimeout(() => {
-          console.log("Redirecting with estimate data:", estimateData);
-          router.push("/confirmation");
-        }, 800);
+        // Auto-select first active model
+        const activeModels = data.filter(m => m.is_active);
+        if (activeModels.length > 0) {
+          setSelectedModel(activeModels[0].model_id);
+        }
       } catch (error) {
-        console.error("Error estimating job:", error);
-        
-        // Clear intervals
-        clearInterval(progressInterval);
-        clearInterval(statusInterval);
-        
-        // Show error to user
-        setErrorMsg(error instanceof Error ? error.message : "Failed to get cost estimate");
-        setIsSubmitting(false);
-        setLoadingProgress(0);
+        console.error("Failed to load models:", error);
+        setErrorMsg("Could not load models. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
-    };
+    }
     
-    // Call the API after a slight delay to let the UI update
-    setTimeout(callEstimateApi, 500);
+    loadModels();
+  }, [router]);
+  
+  // Handle form submission
+  const handleSubmit = async () => {
+    if (!selectedModel || isSubmitting) return;
+    
+    // Get necessary data from localStorage
+    const promptId = localStorage.getItem("currentPromptId");
+    const mediaId = localStorage.getItem("currentMediaId");
+    
+    // Validate data
+    if (!promptId || promptId === "undefined" || promptId === "null") {
+      setErrorMsg("Please select a prompt first");
+      return;
+    }
+    
+    if (!mediaId || mediaId === "undefined" || mediaId === "null") {
+      setErrorMsg("Please upload a file first");
+      return;
+    }
+    
+    // Start submission process
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setProgressStage("Starting estimation...");
+    setProgress(10);
+    
+    // Save current parameters to localStorage
+    localStorage.setItem("currentModelId", selectedModel);
+    localStorage.setItem("verbosity", verbosity.toString());
+    localStorage.setItem("granularity", granularity);
+    localStorage.setItem("chunkSize", chunkSize.toString());
+    
+    // Setup progress animation
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) return 90;
+        return prev + 5;
+      });
+    }, 500);
+    
+    const stageInterval = setInterval(() => {
+      setProgress(p => {
+        if (p < 30) setProgressStage("Preparing request...");
+        else if (p < 50) setProgressStage("Calculating input tokens...");
+        else if (p < 70) setProgressStage("Calculating output tokens...");
+        else setProgressStage("Estimating costs...");
+        return p;
+      });
+    }, 1000);
+    
+    try {
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("prompt_id", promptId);
+      formData.append("media_id", mediaId);
+      formData.append("model_id", selectedModel);
+      
+      // Prepare query parameters
+      const queryParams = new URLSearchParams({
+        granularity: granularity,
+        verbosity: verbosity.toFixed(1),
+        chunk_size: chunkSize.toString()
+      });
+      
+      // Call the API
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`/api/job/estimate?${queryParams.toString()}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      // Clear intervals
+      clearInterval(progressInterval);
+      clearInterval(stageInterval);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error: ${response.status} - ${errorText}`);
+      }
+      
+      // Parse response
+      const data = await response.json();
+      
+      // Store individual items from the response in localStorage
+      localStorage.setItem("jobEstimateData", JSON.stringify(data)); // Keep this for backward compatibility
+      
+      // Store each field separately
+      if (data.filename) localStorage.setItem("estimateFilename", data.filename);
+      if (data.modelname) localStorage.setItem("estimateModelname", data.modelname);
+      if (data.verbosity) localStorage.setItem("estimateVerbosity", data.verbosity.toString());
+      if (data.granularity) localStorage.setItem("estimateGranularity", data.granularity);
+      if (data.estimated_input_tokens) localStorage.setItem("estimateInputTokens", data.estimated_input_tokens.toString());
+      if (data.estimated_output_tokens) localStorage.setItem("estimateOutputTokens", data.estimated_output_tokens.toString());
+      if (data.cost_per_1m_input) localStorage.setItem("estimateCostPerInputM", data.cost_per_1m_input.toString());
+      if (data.cost_per_1m_output) localStorage.setItem("estimateCostPerOutputM", data.cost_per_1m_output.toString());
+      if (data.handling_fee) localStorage.setItem("estimateHandlingFee", data.handling_fee.toString());
+      if (data.estimated_cost) localStorage.setItem("estimateTotalCost", data.estimated_cost.toString());
+      if (data.job_id) localStorage.setItem("estimateJobId", data.job_id.toString());
+      
+      // Complete progress and redirect
+      setProgress(100);
+      setProgressStage("Complete! Redirecting...");
+      
+      // Navigate to confirmation page
+      setTimeout(() => {
+        router.push("/confirmation");
+      }, 500);
+      
+    } catch (error) {
+      clearInterval(progressInterval);
+      clearInterval(stageInterval);
+      console.error("Error:", error);
+      setErrorMsg(error instanceof Error ? error.message : "An unknown error occurred");
+      setIsSubmitting(false);
+      setProgress(0);
+    }
   };
   
-    // Cancel estimation
-      const handleCancel = () => {
-        // Clear any intervals that might be running
-        const maxIntervalId = window.setTimeout(() => {}, 0);
-        for (let i = 0; i < maxIntervalId; i++) {
-          window.clearTimeout(i);
-          window.clearInterval(i);
-        }
-      
-        setIsSubmitting(false);
-        setErrorMsg("Estimation cancelled by user");
-        setLoadingProgress(0);
-        setLoadingStage("Cancelled");
-      };
-
-  // Auth loading screen
-  if (checkingAuth) {
-    return (
-      <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-        <p className="mt-4 text-gray-400">Verifying credentials...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col">
       <Topbar />
       
       <main className="flex-grow pt-20 px-6 md:px-10 lg:px-16">
         <div className="max-w-4xl mx-auto py-8">
-          {/* Header with Logo */}
+          {/* Header */}
           <div className="mb-10 text-center">
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 relative">
@@ -308,7 +225,7 @@ export default function ModelSelectPage() {
             <h1 className="text-3xl font-bold">Select a Model</h1>
             <p className="text-gray-400 mt-2">Choose an AI model and configure parameters for your analysis</p>
           </div>
-
+          
           {/* Error Message */}
           {errorMsg && (
             <div className="bg-red-600/80 text-white p-4 rounded-lg mb-6">
@@ -316,40 +233,8 @@ export default function ModelSelectPage() {
             </div>
           )}
           
-          {/* Debug Button - only visible in development */}
-          <button 
-            onClick={() => {
-              const promptId = localStorage.getItem("currentPromptId");
-              const mediaId = localStorage.getItem("currentMediaId");
-              const modelId = localStorage.getItem("currentModelId");
-              
-              const storageData = {
-                promptId: promptId,
-                mediaId: mediaId, 
-                modelId: modelId,
-                fileName: localStorage.getItem("currentFileName"),
-                detailLevel: localStorage.getItem("detailLevel"),
-                operationMode: localStorage.getItem("operationMode"),
-                maxRows: localStorage.getItem("maxRows")
-              };
-              
-              // Fix filename if missing
-              if (!storageData.fileName || storageData.fileName === "null") {
-                localStorage.setItem("currentFileName", "uploaded_file.xlsx");
-                storageData.fileName = "uploaded_file.xlsx";
-              }
-              
-              console.log("LocalStorage Contents:", storageData);
-              alert("LocalStorage check: " + JSON.stringify(storageData, null, 2) + 
-                    "\n\nAll Required IDs Present: " + (!!promptId && !!mediaId && !!modelId));
-            }}
-            className="mb-4 bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2 rounded-md text-sm"
-          >
-            Debug: Check localStorage
-          </button>
-
+          {/* Models */}
           <div>
-            {/* AI Model Selection */}
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-4">Available Models</h2>
               
@@ -390,69 +275,68 @@ export default function ModelSelectPage() {
                 </div>
               )}
             </div>
-
-            {/* Settings Section */}
+            
+            {/* Settings */}
             <div className="bg-gray-800 rounded-lg p-6 mb-8">
               <div className="flex items-center mb-4">
                 <FaCog className="text-purple-400 mr-2" />
                 <h2 className="text-xl font-semibold">Analysis Configuration</h2>
               </div>
-
-              {/* Detail Level Slider */}
+              
+              {/* Verbosity Slider */}
               <div className="mb-6">
                 <label className="block text-gray-300 mb-2">
-                  Detail Level: <span className="font-medium">{detailLevel.toFixed(1)}</span>
+                  Verbosity Level: <span className="font-medium">{verbosity.toFixed(1)}</span>
                 </label>
                 <input
                   type="range"
                   min="0.2"
                   max="2"
                   step="0.1"
-                  value={detailLevel}
-                  onChange={(e) => setDetailLevel(parseFloat(e.target.value))}
+                  value={verbosity}
+                  onChange={(e) => setVerbosity(parseFloat(e.target.value))}
                   className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>Basic</span>
-                  <span>Standard</span>
-                  <span>Detailed</span>
+                  <span>Minimal</span>
+                  <span>Balanced</span>
+                  <span>Verbose</span>
                 </div>
               </div>
-
-              {/* Operation Mode Dropdown */}
+              
+              {/* Granularity Dropdown */}
               <div className="mb-6">
-                <label className="block text-gray-300 mb-2">Operation Mode</label>
+                <label className="block text-gray-300 mb-2">Granularity</label>
                 <select
-                  value={operationMode}
-                  onChange={(e) => setOperationMode(e.target.value)}
+                  value={granularity}
+                  onChange={(e) => setGranularity(e.target.value)}
                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="PER_ROW">Row</option>
-                  {/* Disabled Cell mode as we're only using Row mode for now */}
-                  <option value="PER_CELL" disabled>Cell (Disabled)</option>
+                  <option value="PER_ROW">Per Row</option>
+                  <option value="PER_CELL" disabled>Per Cell (Disabled)</option>
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
                   Processes data by rows (faster for horizontal data)
                 </p>
               </div>
-
-              {/* Max Rows Input */}
+              
+              {/* Chunk Size Input */}
               <div>
-                <label className="block text-gray-300 mb-2">Maximum Rows to Process</label>
+                <label className="block text-gray-300 mb-2">Chunk Size (Rows per Request)</label>
                 <input
                   type="number"
                   min="1"
                   max="1000"
-                  value={maxRows}
-                  onChange={(e) => setMaxRows(parseInt(e.target.value))}
+                  value={chunkSize}
+                  onChange={(e) => setChunkSize(parseInt(e.target.value))}
                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Limits the number of rows that will be processed (recommended value: 100)
+                  Number of rows processed in each chunk (recommended: 10-100)
                 </p>
               </div>
             </div>
-
+            
             {/* Submit Button */}
             <div className="flex justify-end">
               <Button 
@@ -476,7 +360,7 @@ export default function ModelSelectPage() {
             </div>
           </div>
           
-          {/* Loading Overlay - Show when submitting */}
+          {/* Loading Overlay */}
           {isSubmitting && (
             <div className="fixed inset-0 bg-black/70 z-50 flex flex-col items-center justify-center">
               <div className="bg-gray-800 p-8 rounded-lg shadow-lg max-w-md w-full">
@@ -491,27 +375,30 @@ export default function ModelSelectPage() {
                     />
                   </div>
                   <h2 className="text-xl font-bold text-white mb-2">Calculating Costs</h2>
-                  <p className="text-gray-300">{loadingStage}</p>
+                  <p className="text-gray-300">{progressStage}</p>
                 </div>
                 
                 {/* Progress bar */}
                 <div className="w-full bg-gray-700 rounded-full h-4 mb-4">
                   <div 
                     className="bg-gradient-to-r from-blue-500 to-purple-600 h-4 rounded-full"
-                    style={{ width: `${loadingProgress}%` }}
+                    style={{ width: `${progress}%` }}
                   ></div>
                 </div>
                 
                 <div className="flex justify-between text-sm text-gray-400">
-                  <span>{loadingProgress}%</span>
+                  <span>{progress}%</span>
                   <span>Please wait...</span>
                 </div>
                 
                 {/* Cancel button */}
-                {loadingProgress < 90 && (
+                {progress < 90 && (
                   <button
                     className="mt-6 w-full py-2 px-4 border border-gray-600 rounded-md text-gray-300 hover:bg-gray-700 transition-colors"
-                    onClick={handleCancel}
+                    onClick={() => {
+                      setIsSubmitting(false);
+                      setProgress(0);
+                    }}
                   >
                     Cancel
                   </button>
@@ -521,7 +408,7 @@ export default function ModelSelectPage() {
           )}
         </div>
       </main>
-
+      
       <Footer />
     </div>
   );

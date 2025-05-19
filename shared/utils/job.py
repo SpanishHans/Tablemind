@@ -83,71 +83,77 @@ class JobUtils:
         total_tokens = 0
         if model.provider == "Google":
             try:
-                total_tokens += self.estimate_google(data=content, api_key=api_key , model_encoder=model.encoder)
+                total_tokens += self.estimate_google(data=content, api_key=api_key, model_encoder=model.encoder)
                 return total_tokens
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens con Google: {str(e)}")
         elif model.provider == "OpenAI":
             try:
-                total_tokens += self.estimate_google(data=content, api_key=api_key , model_encoder=model.encoder)
+                # For now, use the Google method for all providers since we don't have OpenAI-specific method yet
+                total_tokens += self.estimate_google(data=content, api_key=api_key, model_encoder=model.encoder)
                 return total_tokens
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens con Anthropic: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"No se pudo contar el número de tokens con OpenAI: {str(e)}")
         else:
-            return 0
+            # Default estimation: assume 4 characters per token as a fallback
+            return len(content) // 4
         
 
 
 
     def estimate_input_tokens(
-            self,
-            df: pd.DataFrame,
-            model: Model_on_db,
-            api_key,
-            granularity: GranularityLevel = GranularityLevel.PER_ROW,
-            focus_column: Optional[str] = None,
-            prompt_text: Optional[str] = None
-        ) -> int:
-        total_tokens = 0
-
-        if granularity == GranularityLevel.PER_ROW:
-            for _, row in df.iterrows():
+        self,
+        df: pd.DataFrame,
+        model: Model_on_db,
+        api_key,
+        prompt_text: str,
+        granularity: GranularityLevel = GranularityLevel.PER_ROW,
+        focus_column: Optional[str] = None,
+        sample_size: int = 5
+    ) -> int:
+        if df.empty:
+            return 0
+    
+        sample = df.sample(n=min(sample_size, len(df)))
+    
+        total_sample_tokens = 0
+        for _, row in sample.iterrows():
+            if granularity == GranularityLevel.PER_CELL:
+                if not focus_column or focus_column not in df.columns:
+                    raise ValueError("focus_column must be provided and valid for PER_CELL granularity")
+                content = str(row[focus_column])
+            else:
                 content = str(row.to_dict())
-                if prompt_text:
-                    content = f"{prompt_text}\n{content}"
-                total_tokens = self.provider_picker(model, content, api_key)
-        elif granularity == GranularityLevel.PER_CELL:
-            if focus_column is None or focus_column not in df.columns:
-                raise ValueError("focus_column must be provided and valid for PER_CELL granularity")
-
-            for _, row in df.iterrows():
-                content = str(row.to_dict())
-                if prompt_text:
-                    content = f"{prompt_text}\n{content}"
-                total_tokens = self.provider_picker(model, content, api_key)
-
-        return total_tokens
+    
+            content = f"{prompt_text}\n{content}"
+            total_sample_tokens += self.provider_picker(model, content, api_key)
+    
+        avg_tokens_per_row = total_sample_tokens / len(sample)
+        return int(avg_tokens_per_row * len(df))
 
 
 
     def estimate_output_tokens(
-            self,
-            input_tokens: int,
-            verbosity: float,
-            model_max_output_tokens: int
-        ) -> Tuple[int, str]:
-        total_tokens = int(input_tokens * round(verbosity,2))
-
-        risk_level = "low"
-
+        self,
+        input_tokens: int,
+        verbosity: float,
+        model_max_output_tokens: int
+    ) -> Tuple[int, str]:
+        total_tokens = int(input_tokens * round(verbosity, 2))
+    
         if total_tokens > model_max_output_tokens:
-            raise HTTPException(status_code=400, detail=f"⚠️ Cantidad de tokens ({total_tokens}) supera el máximo seguro de {model_max_output_tokens} tokens. Considera reducir la verbosidad.")
-            total_tokens = model_max_output_tokens
-            risk_level = "high"
-        elif total_tokens > model_max_output_tokens * 0.8:
+            raise HTTPException(
+                status_code=400,
+                detail=f"⚠️ Cantidad de tokens ({total_tokens}) supera el máximo permitido ({model_max_output_tokens}). Considera reducir la verbosidad."
+            )
+    
+        if total_tokens > model_max_output_tokens * 0.8:
             risk_level = "medium"
-
+        else:
+            risk_level = "low"
+    
         return total_tokens, risk_level
+
 
 
 

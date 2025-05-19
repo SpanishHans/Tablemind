@@ -24,12 +24,10 @@ export default function LoadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  // Verificar autenticación al cargar el componente
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem("access_token");
       if (!token) {
-        // Redireccionar al login si no hay token
         router.push("/login");
       } else {
         setCheckingAuth(false);
@@ -54,14 +52,12 @@ export default function LoadPage() {
       "text/csv",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.oasis.opendocument.spreadsheet", // Para archivos .ods
+      "application/vnd.oasis.opendocument.spreadsheet",
     ];
     const validExtensions = [".csv", ".xls", ".xlsx", ".ods", ".tsv"];
 
-    // Comprueba el tipo MIME
     if (validTypes.includes(file.type)) return true;
 
-    // Comprueba la extensión del archivo
     return validExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
   };
 
@@ -119,18 +115,10 @@ export default function LoadPage() {
       setIsLoading(true);
       setErrorMsg("");
 
-      // Crear el FormData para enviar el archivo
       const formData = new FormData();
       formData.append("file", file);
 
-      // Usar el proxy API configurado en next.config.js
       const apiUrl = "/api/media/upload/tabular";
-
-      console.log("Intentando subir archivo:", file.name);
-      console.log(
-        "Token de autorización presente:",
-        !!localStorage.getItem("access_token"),
-      );
 
       const token = localStorage.getItem("access_token");
       if (!token) {
@@ -142,32 +130,23 @@ export default function LoadPage() {
       const res = await fetch(apiUrl, {
         method: "POST",
         body: formData,
-        // No incluimos credentials: "include" si ya estamos enviando el token en headers
         headers: {
           Authorization: `Bearer ${token}`,
-          // No establecemos Content-Type ya que el navegador lo hará automáticamente con el boundary correcto para FormData
         },
       });
 
-      // Verificar si la respuesta fue exitosa antes de intentar parsear JSON
       if (!res.ok) {
-        // Intentar obtener detalles del error si está disponible como JSON
         try {
           const errorData = await res.json();
           throw new Error(
             errorData.detail || `Error ${res.status}: ${res.statusText}`,
           );
         } catch {
-          // Si no se puede parsear como JSON, usar el mensaje de estado HTTP
           throw new Error(`Error ${res.status}: ${res.statusText}`);
         }
       }
 
       const data = await res.json();
-      console.log("Respuesta del servidor:", data);
-
-      // Guardar el media_id en localStorage para usarlo en confirmación
-      // Verificar diferentes propiedades donde podría venir el ID
       if (data.id) {
         localStorage.setItem("currentMediaId", data.id);
         localStorage.setItem("currentFileName", file.name);
@@ -178,22 +157,15 @@ export default function LoadPage() {
         localStorage.setItem("currentMediaId", data._id);
         localStorage.setItem("currentFileName", file.name);
       } else {
-        // Simular éxito para prueba mientras se arregla el backend
         console.warn("No se encontró ID en la respuesta, usando ID temporal");
         localStorage.setItem("currentMediaId", "test-media-id-123");
         localStorage.setItem("currentFileName", file.name);
       }
 
-      // Mostrar en consola lo que se guardó
-      console.log("ID guardado en localStorage:", localStorage.getItem("currentMediaId"));
-      console.log("Filename guardado:", localStorage.getItem("currentFileName"));
-
-      // Redirigir al usuario a la página de confirmación
       router.push("/model");
     } catch (error) {
       console.error("Error al subir archivo:", error);
       
-      // Verificar si tenemos acceso al objeto de respuesta para debug
       if (error instanceof Error && "response" in error) {
         console.error("Detalles de respuesta:", error.response);
       }
@@ -205,9 +177,6 @@ export default function LoadPage() {
       );
       setIsLoading(false);
       
-      // Para fines de desarrollo y prueba, habilita esta línea si necesitas continuar
-      // localStorage.setItem("currentMediaId", "test-media-id-" + Date.now());
-      // localStorage.setItem("currentFileName", file ? file.name : "test-file.xlsx");
     }
   };
 
@@ -224,7 +193,6 @@ export default function LoadPage() {
     }
   };
 
-  // Si aún estamos verificando la autenticación, mostrar pantalla de carga
   if (checkingAuth) {
     return (
       <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col items-center justify-center">
@@ -240,7 +208,6 @@ export default function LoadPage() {
 
       <main className="flex-grow pt-20 px-6 md:px-10 lg:px-16">
         <div className="max-w-4xl mx-auto py-8">
-          {/* Header with Logo */}
           <motion.div
             className="mb-10 text-center"
             initial={{ opacity: 0, y: -20 }}
@@ -265,7 +232,6 @@ export default function LoadPage() {
             </p>
           </motion.div>
 
-          {/* Error Message */}
           {errorMsg && (
             <motion.div
               className="mb-4 bg-red-600/80 text-white p-3 rounded"
@@ -276,7 +242,6 @@ export default function LoadPage() {
             </motion.div>
           )}
 
-          {/* Upload Area */}
           <motion.div
             className="mb-8"
             initial={{ opacity: 0, y: 20 }}
@@ -341,23 +306,6 @@ export default function LoadPage() {
               )}
             </div>
           </motion.div>
-
-          {/* Debug Button */}
-          <button
-            onClick={() => {
-              const storageData = {
-                mediaId: localStorage.getItem("currentMediaId"),
-                fileName: localStorage.getItem("currentFileName"),
-                promptId: localStorage.getItem("currentPromptId"),
-                modelId: localStorage.getItem("currentModelId"),
-              };
-              console.log("LocalStorage Contents:", storageData);
-              alert("LocalStorage data: " + JSON.stringify(storageData, null, 2));
-            }}
-            className="mb-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
-          >
-            Debug: Check localStorage
-          </button>
           
           {/* Format Information */}
           <motion.div
@@ -396,25 +344,6 @@ export default function LoadPage() {
             <div className="mt-2 text-sm text-gray-400">
               <p>Tamaño máximo: 10MB por archivo</p>
             </div>
-          </motion.div>
-
-          {/* Debug Button */}
-          <motion.div className="mb-4">
-            <button
-              onClick={() => {
-                const storageData = {
-                  mediaId: localStorage.getItem("currentMediaId"),
-                  fileName: localStorage.getItem("currentFileName"),
-                  promptId: localStorage.getItem("currentPromptId"),
-                  token: localStorage.getItem("access_token") ? "Present" : "Missing"
-                };
-                console.log("LocalStorage Contents:", storageData);
-                alert("LocalStorage: " + JSON.stringify(storageData, null, 2));
-              }}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm"
-            >
-              Debug Storage
-            </button>
           </motion.div>
           
           {/* Submit Button */}
