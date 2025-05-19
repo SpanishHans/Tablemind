@@ -9,7 +9,7 @@ import Topbar from "@/components/layout/Topbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 
-// Tipo para los modelos cargados desde el backend
+// Model interface
 interface Model {
   model_id: string;
   name: string;
@@ -23,16 +23,25 @@ interface Model {
 
 export default function ModelSelectPage() {
   const router = useRouter();
+  
+  // Model selection states
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [detailLevel, setDetailLevel] = useState<number>(1);
   const [operationMode, setOperationMode] = useState<string>("PER_ROW");
   const [maxRows, setMaxRows] = useState<number>(100);
+  
+  // UI states
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string>("");
   const [models, setModels] = useState<Model[]>([]);
+  
+  // Loading states
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStage, setLoadingStage] = useState("");
 
-  // Colores para los diferentes proveedores
+  // Provider colors for UI
   const providerColors: Record<string, string> = {
     "Google": "bg-blue-500",
     "OpenAI": "bg-green-500",
@@ -45,94 +54,153 @@ export default function ModelSelectPage() {
     "Grok": "bg-blue-600"
   };
 
-  // Verificar autenticación al cargar el componente
+  // Load models on component mount
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        // Redireccionar al login si no hay token
-        router.push("/login");
-        return;
-      }
-      
-      setCheckingAuth(false);
-      
-      try {
-        // Cargar los modelos disponibles
-        const apiUrl = "/api/model/fetch/all";
-        const res = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (!res.ok) {
-          try {
-            const errorData = await res.json();
-            setErrorMsg(errorData.detail || `Error ${res.status}: ${res.statusText}`);
-          } catch {
-            setErrorMsg(`Error ${res.status}: ${res.statusText}`);
-          }
-          setIsLoading(false);
-          return;
-        }
-
-        const modelsData = await res.json();
-        console.log("Modelos cargados:", modelsData);
-        setModels(modelsData);
-        
-        // Si hay modelos disponibles, seleccionar el primero por defecto
-        if (modelsData && modelsData.length > 0) {
-          const activeModels = modelsData.filter((model: Model) => model.is_active);
-          if (activeModels.length > 0) {
-            setSelectedModel(activeModels[0].model_id);
-          }
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error al cargar los modelos:", error);
-        setErrorMsg("Error de conexión al cargar los modelos");
-        setIsLoading(false);
-      }
-    };
-    
-    checkAuth();
+    loadModels();
   }, [router]);
 
-  // Manejar la selección del modelo
-  const handleSubmit = () => {
-    if (!selectedModel) return;
+  // Function to fetch available models
+  const loadModels = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    
+    setCheckingAuth(false);
+    setIsLoading(true);
+    setErrorMsg("");
     
     try {
-      // Guardar los parámetros seleccionados en localStorage
-      localStorage.setItem("currentModelId", selectedModel);
-      localStorage.setItem("detailLevel", detailLevel.toString());
-      localStorage.setItem("operationMode", operationMode);
-      localStorage.setItem("maxRows", maxRows.toString());
-      
-      console.log("Parámetros guardados:", {
-        modelId: selectedModel,
-        detailLevel,
-        operationMode,
-        maxRows
+      const response = await fetch("/api/model/fetch/all", {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
       });
       
-      // Navegar a la siguiente página
-      router.push("/confirmation");
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Error ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.detail) errorMessage = errorData.detail;
+        } catch {}
+        
+        throw new Error(errorMessage);
+      }
+      
+      const modelsData = await response.json();
+      setModels(modelsData);
+      
+      // Auto-select first active model
+      if (modelsData && modelsData.length > 0) {
+        const activeModels = modelsData.filter((model: Model) => model.is_active);
+        if (activeModels.length > 0) {
+          setSelectedModel(activeModels[0].model_id);
+        }
+      }
     } catch (error) {
-      console.error("Error al guardar parámetros:", error);
-      setErrorMsg("Error al guardar la configuración");
+      console.error("Error loading models:", error);
+      setErrorMsg(error instanceof Error ? error.message : "Error loading models");
+    } finally {
+      setIsLoading(false);
     }
   };
+  
+  // Handle form submission
+  const handleSubmit = () => {
+    if (!selectedModel || isSubmitting) return;
+    
+    // Start loading state
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setLoadingStage("Starting estimation...");
+    setLoadingProgress(10);
+    
+    // Save parameters to localStorage
+    localStorage.setItem("currentModelId", selectedModel);
+    localStorage.setItem("detailLevel", detailLevel.toString());
+    localStorage.setItem("operationMode", operationMode);
+    localStorage.setItem("maxRows", maxRows.toString());
+    
+    // Create a simulated loading animation
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => {
+        const newProgress = prev + 5;
+        if (newProgress >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return newProgress;
+      });
+    }, 800);
+    
+    // Update status messages based on progress
+    const statusInterval = setInterval(() => {
+      const currentProgress = loadingProgress;
+      if (currentProgress < 30) {
+        setLoadingStage("Preparing request...");
+      } else if (currentProgress < 50) {
+        setLoadingStage("Calculating input tokens...");
+      } else if (currentProgress < 70) {
+        setLoadingStage("Calculating output tokens...");
+      } else {
+        setLoadingStage("Estimating costs...");
+      }
+    }, 1000);
+    
+    // Simulate an API response after delay
+    setTimeout(() => {
+      // Clear intervals
+      clearInterval(progressInterval);
+      clearInterval(statusInterval);
+      
+      // Create fake estimate data
+      const estimateData = {
+        filename: "example_file.xlsx",
+        modelname: "GPT-4",
+        verbosity: detailLevel,
+        granularity: operationMode,
+        estimated_input_tokens: 12500,
+        estimated_output_tokens: 6800,
+        cost_per_1m_input: 10,
+        cost_per_1m_output: 30,
+        handling_fee: 5,
+        estimated_cost: 35,
+        job_id: "12345-mock-job-id",
+        job_status: "pending",
+        created_at: new Date().toISOString(),
+        completed_at: null
+      };
+      
+      // Save mock data to localStorage
+      localStorage.setItem("jobEstimateData", JSON.stringify(estimateData));
+      
+      // Complete the loading
+      setLoadingProgress(100);
+      setLoadingStage("Completed! Redirecting...");
+      
+      // Navigate to confirmation page
+      setTimeout(() => {
+        router.push("/confirmation");
+      }, 800);
+    }, 3000);
+  };
+  
+    // Cancel estimation
+    const handleCancel = () => {
+      setIsSubmitting(false);
+      setErrorMsg("Estimation cancelled by user");
+      setLoadingProgress(0);
+      setLoadingStage("Cancelled");
+    };
 
-  // Si está comprobando autenticación, mostrar pantalla de carga
+  // Auth loading screen
   if (checkingAuth) {
     return (
       <div className="min-h-screen w-full bg-gray-900 text-white flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-        <p className="mt-4 text-gray-400">Verificando credenciales...</p>
+        <p className="mt-4 text-gray-400">Verifying credentials...</p>
       </div>
     );
   }
@@ -144,12 +212,7 @@ export default function ModelSelectPage() {
       <main className="flex-grow pt-20 px-6 md:px-10 lg:px-16">
         <div className="max-w-4xl mx-auto py-8">
           {/* Header with Logo */}
-          <motion.div 
-            className="mb-10 text-center"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+          <div className="mb-10 text-center">
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 relative">
                 <Image
@@ -161,39 +224,30 @@ export default function ModelSelectPage() {
                 />
               </div>
             </div>
-            <h1 className="text-3xl font-bold">Selecciona un modelo</h1>
-            <p className="text-gray-400 mt-2">Elige el modelo de IA y configura los parámetros para tu análisis</p>
-          </motion.div>
+            <h1 className="text-3xl font-bold">Select a Model</h1>
+            <p className="text-gray-400 mt-2">Choose an AI model and configure parameters for your analysis</p>
+          </div>
 
+          {/* Error Message */}
           {errorMsg && (
-            <motion.div
-              className="bg-red-600/80 text-white p-4 rounded-lg mb-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <div className="bg-red-600/80 text-white p-4 rounded-lg mb-6">
               {errorMsg}
-            </motion.div>
+            </div>
           )}
 
           <div>
             {/* AI Model Selection */}
-            <motion.div
-              className="mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <h2 className="text-xl font-semibold mb-4">Modelos disponibles</h2>
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4">Available Models</h2>
               
               {isLoading ? (
                 <div className="flex justify-center items-center py-12">
                   <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500"></div>
-                  <p className="ml-3 text-gray-400">Cargando modelos...</p>
+                  <p className="ml-3 text-gray-400">Loading models...</p>
                 </div>
               ) : models.length === 0 ? (
                 <div className="bg-gray-800/50 rounded-lg p-6 text-center">
-                  <p className="text-gray-400">No hay modelos disponibles. Por favor, contacta con el administrador.</p>
+                  <p className="text-gray-400">No models available. Please contact your administrator.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -214,36 +268,31 @@ export default function ModelSelectPage() {
                       </div>
                       <h3 className="font-medium">{model.name}</h3>
                       <p className="text-xs text-gray-400 mt-1">
-                        {!model.is_active ? "No disponible" : 
-                          selectedModel === model.model_id ? "Seleccionado" : 
-                          `Proveedor: ${model.provider}`}
+                        {!model.is_active ? "Not available" : 
+                          selectedModel === model.model_id ? "Selected" : 
+                          `Provider: ${model.provider}`}
                       </p>
                     </div>
                   ))}
                 </div>
               )}
-            </motion.div>
+            </div>
 
             {/* Settings Section */}
-            <motion.div
-              className="bg-gray-800 rounded-lg p-6 mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
+            <div className="bg-gray-800 rounded-lg p-6 mb-8">
               <div className="flex items-center mb-4">
                 <FaCog className="text-purple-400 mr-2" />
-                <h2 className="text-xl font-semibold">Configuración del análisis</h2>
+                <h2 className="text-xl font-semibold">Analysis Configuration</h2>
               </div>
 
               {/* Detail Level Slider */}
               <div className="mb-6">
                 <label className="block text-gray-300 mb-2">
-                  Nivel de detalle: <span className="font-medium">{detailLevel.toFixed(1)}</span>
+                  Detail Level: <span className="font-medium">{detailLevel.toFixed(1)}</span>
                 </label>
                 <input
                   type="range"
-                  min="0"
+                  min="0.2"
                   max="2"
                   step="0.1"
                   value={detailLevel}
@@ -251,33 +300,33 @@ export default function ModelSelectPage() {
                   className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>Básico</span>
-                  <span>Estándar</span>
-                  <span>Detallado</span>
+                  <span>Basic</span>
+                  <span>Standard</span>
+                  <span>Detailed</span>
                 </div>
               </div>
 
               {/* Operation Mode Dropdown */}
               <div className="mb-6">
-                <label className="block text-gray-300 mb-2">Modo de operación</label>
+                <label className="block text-gray-300 mb-2">Operation Mode</label>
                 <select
                   value={operationMode}
                   onChange={(e) => setOperationMode(e.target.value)}
                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="PER_ROW">Fila</option>
-                  <option value="PER_CELL">Celda</option>
+                  <option value="PER_ROW">Row</option>
+                  <option value="PER_CELL">Cell</option>
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
                   {operationMode === "PER_ROW" 
-                    ? "Procesa los datos por filas (más rápido para datos horizontales)" 
-                    : "Procesa los datos por celdas (más eficiente para datos estructurados verticalmente)"}
+                    ? "Processes data by rows (faster for horizontal data)" 
+                    : "Processes data by cells (more efficient for vertically structured data)"}
                 </p>
               </div>
 
               {/* Max Rows Input */}
               <div>
-                <label className="block text-gray-300 mb-2">Máximo de filas a procesar</label>
+                <label className="block text-gray-300 mb-2">Maximum Rows to Process</label>
                 <input
                   type="number"
                   min="1"
@@ -287,29 +336,77 @@ export default function ModelSelectPage() {
                   className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Limita la cantidad de filas que se procesarán (valor recomendado: 100)
+                  Limits the number of rows that will be processed (recommended value: 100)
                 </p>
               </div>
-            </motion.div>
+            </div>
 
             {/* Submit Button */}
-            <motion.div
-              className="flex justify-end"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
+            <div className="flex justify-end">
               <Button 
                 type="button" 
-                disabled={!selectedModel || isLoading}
+                disabled={!selectedModel || isSubmitting || isLoading}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSubmit}
               >
-                <span>Siguiente</span>
-                <FaArrowRight />
+                {isSubmitting ? (
+                  <>
+                    <span className="animate-spin h-5 w-5 mr-2 border-t-2 border-b-2 border-white rounded-full" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Next</span>
+                    <FaArrowRight />
+                  </>
+                )}
               </Button>
-            </motion.div>
+            </div>
           </div>
+          
+          {/* Loading Overlay - Show when submitting */}
+          {isSubmitting && (
+            <div className="fixed inset-0 bg-black/70 z-50 flex flex-col items-center justify-center">
+              <div className="bg-gray-800 p-8 rounded-lg shadow-lg max-w-md w-full">
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 mx-auto relative mb-4">
+                    <Image
+                      src="/images/logo.jpeg"
+                      alt="TableMind Logo"
+                      fill
+                      sizes="80px"
+                      className="object-contain" 
+                    />
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-2">Calculating Costs</h2>
+                  <p className="text-gray-300">{loadingStage}</p>
+                </div>
+                
+                {/* Progress bar */}
+                <div className="w-full bg-gray-700 rounded-full h-4 mb-4">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-4 rounded-full"
+                    style={{ width: `${loadingProgress}%` }}
+                  ></div>
+                </div>
+                
+                <div className="flex justify-between text-sm text-gray-400">
+                  <span>{loadingProgress}%</span>
+                  <span>Please wait...</span>
+                </div>
+                
+                {/* Cancel button */}
+                {loadingProgress < 90 && (
+                  <button
+                    className="mt-6 w-full py-2 px-4 border border-gray-600 rounded-md text-gray-300 hover:bg-gray-700 transition-colors"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 

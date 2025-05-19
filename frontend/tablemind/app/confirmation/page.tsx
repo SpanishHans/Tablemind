@@ -66,14 +66,12 @@ export default function ConfirmationPage() {
       const operationMode = localStorage.getItem("operationMode") || "PER_ROW";
       const maxRows = parseInt(localStorage.getItem("maxRows") || "100");
       
-      // También vamos a necesitar recuperar el nombre del modelo y archivo
-      // para mostrarlo en la UI (en una implementación real obtendríamos estos
-      // datos del backend, pero para simplificar usaremos marcadores de posición)
+      // Para mostrar en UI temporal mientras se carga la estimación
       const filename = localStorage.getItem("currentFileName") || "Archivo cargado";
       
       setSelectedData({
         modelId,
-        modelName: "Modelo seleccionado", // Se actualizará desde la respuesta del backend
+        modelName: "Modelo seleccionado", // Se actualizará desde los datos de estimación
         promptId,
         mediaId,
         filename,
@@ -92,9 +90,42 @@ export default function ConfirmationPage() {
       return true;
     };
     
+    const loadEstimateData = () => {
+      // Obtener los datos de estimación pre-calculados de localStorage
+      const estimateDataJson = localStorage.getItem("jobEstimateData");
+      
+      if (estimateDataJson) {
+        try {
+          const data = JSON.parse(estimateDataJson);
+          console.log("Datos de estimación precalculados:", data);
+          
+          // Actualizar el estado con los datos de la respuesta
+          setEstimateData(data);
+          
+          // Actualizar el nombre del modelo con el recibido de la estimación
+          setSelectedData(prev => ({
+            ...prev,
+            modelName: data.modelname,
+            filename: data.filename
+          }));
+          
+          setIsLoading(false);
+          return true;
+        } catch (error) {
+          console.error("Error al parsear datos de estimación:", error);
+        }
+      }
+      
+      return false;
+    };
+    
     const fetchEstimate = async () => {
       if (!checkAuth() || !loadSelectedData()) return;
       
+      // Primero intentar cargar datos pre-calculados
+      if (loadEstimateData()) return;
+      
+      // Si no hay datos pre-calculados, hacer la petición API (fallback)
       try {
         setIsLoading(true);
         setErrorMsg("");
@@ -105,9 +136,6 @@ export default function ConfirmationPage() {
         formData.append("media_id", selectedData.mediaId);
         formData.append("model_id", selectedData.modelId);
         formData.append("focus_column", ""); // Columna focal (opcional)
-        
-        // Convertir detailLevel a granularidad (verbosidad será el detailLevel)
-        // PER_ROW o PER_CELL viene desde el operationMode
         
         // Calcular parámetros basados en el nivel de detalle
         const verbosity = selectedData.detailLevel;
@@ -138,7 +166,7 @@ export default function ConfirmationPage() {
         }
         
         const data = await res.json();
-        console.log("Respuesta de estimación:", data);
+        console.log("Respuesta de estimación (fallback):", data);
         
         // Actualizar el estado con los datos de la respuesta
         setEstimateData(data);
@@ -149,6 +177,9 @@ export default function ConfirmationPage() {
           modelName: data.modelname,
           filename: data.filename
         }));
+        
+        // Guardar la estimación en localStorage para futuras referencias
+        localStorage.setItem("jobEstimateData", JSON.stringify(data));
       } catch (error) {
         console.error("Error al obtener estimación:", error);
         setErrorMsg(error instanceof Error ? error.message : "Error al conectar con el servidor");

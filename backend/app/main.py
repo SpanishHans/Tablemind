@@ -25,7 +25,7 @@ app.add_middleware(
         "http://frontend:3000",
     ],  # Frontend container and local dev
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
 )
 
